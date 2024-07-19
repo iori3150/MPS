@@ -5,6 +5,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "settings.hpp"
+
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -14,51 +16,16 @@ namespace fs = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// calculation conditions
-#define DIM 2
-#define PARTICLE_DISTANCE 0.05  // [m]
-#define DT 0.002                // [s]
-#define OUTPUT_INTERVAL 0.05    // [s]
-#define FINISH_TIME 2.0         // [s]
-#define CFL_CONDITION 0.2
-#define IN_PROF_FILE "input/result/input.prof"
-#define IN_DATA_FILE "input/result/input.data"
-
-// physical properties
-#define KINEMATIC_VISCOSITY (1.0E-6)
-#define DENSITY 1000.0
-
-// effective radius
-#define EFFECTIVE_RADIUS_FOR_NUMBER_DENSITY (2.1 * PARTICLE_DISTANCE)
-#define EFFECTIVE_RADIUS_FOR_GRADIENT (2.1 * PARTICLE_DISTANCE)
-#define EFFECTIVE_RADIUS_FOR_LAPLACIAN (3.1 * PARTICLE_DISTANCE)
-
 // type
 #define GHOST -1
 #define FLUID 0
 #define WALL 2
 #define DUMMY_WALL 3
 
-// cal_gravity()
-#define G_X 0.0
-#define G_Y -9.8
-#define G_Z 0.0
-
-// collision
-#define collision_DISTANCE (0.5 * PARTICLE_DISTANCE)
-#define COEFFICIENT_OF_RESTITUTION 0.2
-
 // set_boundary_condition
-#define THRESHOLD_FOR_SURFACE_DETECTION 0.97  // β in free surface condition n < β * n0
 #define GHOST_OR_DUMMY -1
 #define SURFACE_PARTICLE 1
 #define INNER_PARTICLE 0
-
-// set_source_term
-#define RELAXATION_COEFFICIENT_FOR_PRESSURE 0.2
-
-// set_matrix
-#define COMPRESSIBILITY (0.45E-9)
 
 // check_boundary_condition()
 #define DIRICHLET_BOUNDARY_IS_NOT_CONNECTED 0
@@ -161,6 +128,8 @@ Eigen::VectorXi              num_neighbor;
 std::vector<Eigen::VectorXi> neighbor_id;
 std::vector<Eigen::VectorXd> neighbor_dis2;
 
+Settings settings;
+
 class Simulation {
  public:
   void run();
@@ -216,9 +185,9 @@ int main() {
 void read_data() {
   std::ifstream file;
 
-  file.open(IN_PROF_FILE);
+  file.open(settings.inputProfPath);
   if (!file) {
-    cout << "ERROR: There is no file named " << IN_PROF_FILE << endl;
+    cout << "ERROR: There is no file named " << settings.inputProfPath << endl;
     exit(1);
   }
 
@@ -255,9 +224,9 @@ void read_data() {
 
   file.close();
 
-  file.open(IN_DATA_FILE);
+  file.open(settings.inputDataPath);
   if (!file) {
-    cout << "ERROR: There is no file named " << IN_DATA_FILE << endl;
+    cout << "ERROR: There is no file named " << settings.inputDataPath << endl;
     exit(1);
   }
 
@@ -273,14 +242,14 @@ void read_data() {
 }
 
 void set_parameter() {
-  rho = DENSITY;
+  rho = settings.density;
 
   // effective radius;
-  re_for_n     = EFFECTIVE_RADIUS_FOR_NUMBER_DENSITY;
+  re_for_n     = settings.re_forNumberDensity;
   re2_for_n    = re_for_n * re_for_n;
-  re_for_grad  = EFFECTIVE_RADIUS_FOR_GRADIENT;
+  re_for_grad  = settings.re_forGradient;
   re2_for_grad = re_for_grad * re_for_grad;
-  re_for_lap   = EFFECTIVE_RADIUS_FOR_LAPLACIAN;
+  re_for_lap   = settings.re_forLaplacian;
   re2_for_lap  = re_for_lap * re_for_lap;
   re_max       = std::max({re_for_n, re_for_grad, re_for_lap});
   re2_max      = re_max * re_max;
@@ -295,7 +264,7 @@ void set_parameter() {
   log_file = fopen(filename, "w");
 
   // collision()
-  collision_dis  = collision_DISTANCE;
+  collision_dis  = settings.collisionDistance;
   collision_dis2 = collision_dis * collision_dis;
 
   cal_n0_and_lambda();
@@ -308,7 +277,7 @@ void cal_n0_and_lambda() {
   lambda      = 0.0;
 
   int iZ_start, iZ_end;
-  if (DIM == 2) {
+  if (settings.dim == 2) {
     iZ_start = 0;
     iZ_end   = 1;
   } else {
@@ -323,9 +292,9 @@ void cal_n0_and_lambda() {
       for (int iZ = iZ_start; iZ < iZ_end; iZ++) {
         if (((iX == 0) && (iY == 0)) && (iZ == 0)) continue;
 
-        xi   = PARTICLE_DISTANCE * (double)(iX);
-        yi   = PARTICLE_DISTANCE * (double)(iY);
-        zi   = PARTICLE_DISTANCE * (double)(iZ);
+        xi   = settings.particleDistance * (double)(iX);
+        yi   = settings.particleDistance * (double)(iY);
+        zi   = settings.particleDistance * (double)(iZ);
         dis2 = xi * xi + yi * yi + zi * zi;
 
         dis = sqrt(dis2);
@@ -342,7 +311,7 @@ void cal_n0_and_lambda() {
 }
 
 void set_bucket() {
-  bucket_length = re_max * (1.0 + CFL_CONDITION);
+  bucket_length = re_max * (1.0 + settings.cflCondition);
 
   num_bucket_x  = (int)((x_max - x_min) / bucket_length) + 3;
   num_bucket_y  = (int)((y_max - y_min) / bucket_length) + 3;
@@ -360,7 +329,7 @@ void main_loop() {
 
   write_data();
 
-  while (Time <= FINISH_TIME) {
+  while (Time <= settings.finishTime) {
     timestep_start_time = clock();
 
     // explicit
@@ -382,7 +351,7 @@ void main_loop() {
     cal_courant();
 
     timestep++;
-    Time += DT;
+    Time += settings.dt;
     write_data();
   }
 }
@@ -403,7 +372,7 @@ void write_data() {
 
   // remain
   char remain[256];
-  second                         = ((FINISH_TIME - Time) / Time) * ave * timestep;
+  second                         = ((settings.finishTime - Time) / Time) * ave * timestep;
   std::tie(hour, minute, second) = cal_h_m_s(second);
   if (timestep == 0)
     sprintf(remain, "remain=---");
@@ -414,18 +383,18 @@ void write_data() {
   double last = (double)(now - timestep_start_time) / CLOCKS_PER_SEC;
 
   // terminal output
-  printf("%d: dt=%.gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
-         timestep, DT, Time, FINISH_TIME, elapsed, remain, ave, last, nfile, courant);
+  printf("%d: settings.dt=%.gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
+         timestep, settings.dt, Time, settings.finishTime, elapsed, remain, ave, last, nfile, courant);
 
   // log file output
-  fprintf(log_file, "%d: dt=%gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
-          timestep, DT, Time, FINISH_TIME, elapsed, remain, ave, last, nfile, courant);
+  fprintf(log_file, "%d: settings.dt=%gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
+          timestep, settings.dt, Time, settings.finishTime, elapsed, remain, ave, last, nfile, courant);
 
   // error file output
   fprintf(stderr, "%4d: t=%.3lfs\n", timestep, Time);
 
   // prof file output
-  if (Time >= OUTPUT_INTERVAL * double(nfile)) {
+  if (Time >= settings.outputInterval * double(nfile)) {
     FILE *fp;
     char  filename[256];
 
@@ -452,7 +421,7 @@ void        cal_gravity() {
 #pragma omp parallel for
   rep(i, 0, np) {
     if (type[i] == FLUID) {
-      a[i] << G_X, G_Y, G_Z;
+      a[i] = settings.gravity;
 
     } else {
       a[i] << 0.0, 0.0, 0.0;
@@ -461,7 +430,7 @@ void        cal_gravity() {
 }
 
 void cal_viscosity() {
-  double A = (KINEMATIC_VISCOSITY) * (2.0 * DIM) / (n0_for_lap * lambda);
+  double A = (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0_for_lap * lambda);
 
 #pragma omp parallel for
   rep(i, 0, np) {
@@ -488,8 +457,8 @@ void        move_particle() {
 #pragma omp parallel for
   rep(i, 0, np) {
     if (type[i] == FLUID) {
-      u[i] += a[i] * DT;
-      x[i] += u[i] * DT;
+      u[i] += a[i] * settings.dt;
+      x[i] += u[i] * settings.dt;
     }
 
     a[i].setZero();
@@ -516,7 +485,7 @@ void collision() {
         if (forceDT > 0.0) {
           double mi = rho;
           double mj = rho;
-          forceDT *= (1.0 + COEFFICIENT_OF_RESTITUTION) * mi * mj / (mi + mj);
+          forceDT *= (1.0 + settings.coefficientOfRestitution) * mi * mj / (mi + mj);
           u_after[i] -= (forceDT / mi) * (x[j] - x[i]) / dis;
 
 #pragma omp critical
@@ -532,7 +501,7 @@ void collision() {
   rep(i, 0, np) {
     if (type[i] != FLUID) continue;
 
-    x[i] += (u_after[i] - u[i]) * DT;
+    x[i] += (u_after[i] - u[i]) * settings.dt;
     u[i] = u_after[i];
   }
 }
@@ -568,7 +537,7 @@ void        cal_n() {
 
 void set_boundary_condition() {
   double n0   = n0_for_n;
-  double beta = THRESHOLD_FOR_SURFACE_DETECTION;
+  double beta = settings.thresholdForSurfaceDetection;
 
 #pragma omp parallel for
   rep(i, 0, np) {
@@ -586,12 +555,12 @@ void set_boundary_condition() {
 
 void set_source_term() {
   double n0    = n0_for_n;
-  double gamma = RELAXATION_COEFFICIENT_FOR_PRESSURE;
+  double gamma = settings.relaxationCoefficientForPressure;
 
 #pragma omp parallel for
   rep(i, 0, np) {
     if (boundary_condition[i] == INNER_PARTICLE) {
-      source_term[i] = gamma * (1.0 / (DT * DT)) * ((n[i] - n0) / n0);
+      source_term[i] = gamma * (1.0 / (settings.dt * settings.dt)) * ((n[i] - n0) / n0);
 
     } else {
       source_term[i] = 0.0;
@@ -603,7 +572,7 @@ void set_matrix() {
   coef_matrix.setZero();
 
   double n0 = n0_for_lap;
-  double A  = 2.0 * DIM / (n0 * lambda);
+  double A  = 2.0 * settings.dim / (n0 * lambda);
 #pragma omp parallel for
   rep(i, 0, np) {
     if (boundary_condition[i] != INNER_PARTICLE) continue;
@@ -622,7 +591,7 @@ void set_matrix() {
       }
     }
 
-    coef_matrix(i, i) += (COMPRESSIBILITY) / (DT * DT);
+    coef_matrix(i, i) += (settings.compressibility) / (settings.dt * settings.dt);
   }
 
   exceptional_processing_for_boundary_condition();
@@ -726,7 +695,7 @@ void        set_P_min() {
 }
 
 void cal_P_grad() {
-  double A = DIM / n0_for_grad;
+  double A = settings.dim / n0_for_grad;
 
 #pragma omp parallel for
   rep(i, 0, np) {
@@ -754,8 +723,8 @@ void        move_particle_using_P_grad() {
 #pragma omp parallel for
   rep(i, 0, np) {
     if (type[i] == FLUID) {
-      u[i] += a[i] * DT;
-      x[i] += a[i] * DT * DT;
+      u[i] += a[i] * settings.dt;
+      x[i] += a[i] * settings.dt * settings.dt;
     }
 
     a[i].Zero();
@@ -769,7 +738,7 @@ void cal_courant() {
   rep(i, 0, np) {
     if (type[i] != FLUID) continue;
 
-    double courant_i = (u[i].norm() * DT) / PARTICLE_DISTANCE;
+    double courant_i = (u[i].norm() * settings.dt) / settings.particleDistance;
     if (courant_i > courant)
 #pragma omp critical
     {
@@ -777,7 +746,7 @@ void cal_courant() {
     }
   }
 
-  if (courant > CFL_CONDITION) {
+  if (courant > settings.cflCondition) {
     cerr << "ERROR: Courant number is larger than CFL condition. Courant = " << courant << endl;
     error_flag = ON;
   }
