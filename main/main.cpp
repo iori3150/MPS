@@ -1,16 +1,18 @@
 #include <omp.h>
 
+#include <Eigen/Dense>
+#include <Eigen/IterativeLinearSolvers>
 #include <fstream>
 #include <iostream>
 
-using namespace std;
+using std::cerr;
+using std::cout;
+using std::endl;
+namespace fs = std::filesystem;
+
 #define rep(i, a, b) for (int i = a; i < b; i++)
 #define ON 1
 #define OFF 0
-
-#include <Eigen/Dense>
-#include <Eigen/IterativeLinearSolvers>
-using namespace Eigen;
 
 // calculation conditions
 #define DIM 2
@@ -106,13 +108,13 @@ double weight(double dis, double re);
 double cal_dis2(int i, int j);
 
 // time calculation
-tuple<int, int, int> cal_h_m_s(int second);
+std::tuple<int, int, int> cal_h_m_s(int second);
 
 // particles
-int              np;  // number of particles
-VectorXi         type;
-vector<Vector3d> a, u, x;
-VectorXd         P, P_min, n;
+int                          np;  // number of particles
+Eigen::VectorXi              type;
+std::vector<Eigen::Vector3d> a, u, x;
+Eigen::VectorXd              P, P_min, n;
 
 // effective radius
 double re_for_n, re2_for_n;
@@ -145,20 +147,20 @@ FILE *log_file;
 double collision_dis, collision_dis2;
 
 // cal_P()
-VectorXi boundary_condition, flag_for_checking_boundary_condition;
-VectorXd source_term;
-MatrixXd coef_matrix;
+Eigen::VectorXi boundary_condition, flag_for_checking_boundary_condition;
+Eigen::VectorXd source_term;
+Eigen::MatrixXd coef_matrix;
 
 // bucket
-double   x_min, x_max, y_min, y_max, z_min, z_max;
-int      num_bucket, num_bucket_x, num_bucket_y, num_bucket_xy, num_bucket_z;
-double   bucket_length;
-VectorXi bucket_next, bucket_first, bucket_last;
+double          x_min, x_max, y_min, y_max, z_min, z_max;
+int             num_bucket, num_bucket_x, num_bucket_y, num_bucket_xy, num_bucket_z;
+double          bucket_length;
+Eigen::VectorXi bucket_next, bucket_first, bucket_last;
 
 // neighbor
-VectorXi         num_neighbor;
-vector<VectorXi> neighbor_id;
-vector<VectorXd> neighbor_dis2;
+Eigen::VectorXi              num_neighbor;
+std::vector<Eigen::VectorXi> neighbor_id;
+std::vector<Eigen::VectorXd> neighbor_dis2;
 
 int main() {
   cout << endl
@@ -181,7 +183,7 @@ int main() {
 }
 
 void read_data() {
-  ifstream file;
+  std::ifstream file;
 
   file.open(IN_PROF_FILE);
   if (!file) {
@@ -192,7 +194,7 @@ void read_data() {
   file >> Time;
   file >> np;
 
-  // set vector size
+  // set std::vector size
   type.resize(np);
   a.resize(np);
   u.resize(np);
@@ -228,7 +230,7 @@ void read_data() {
     exit(1);
   }
 
-  string dummy_string;
+  std::string dummy_string;
   file >> dummy_string >> x_min;
   file >> dummy_string >> x_max;
   file >> dummy_string >> y_min;
@@ -249,7 +251,7 @@ void set_parameter() {
   re2_for_grad = re_for_grad * re_for_grad;
   re_for_lap   = EFFECTIVE_RADIUS_FOR_LAPLACIAN;
   re2_for_lap  = re_for_lap * re_for_lap;
-  re_max       = max({re_for_n, re_for_grad, re_for_lap});
+  re_max       = std::max({re_for_n, re_for_grad, re_for_lap});
   re2_max      = re_max * re_max;
 
   // main_loop()
@@ -360,8 +362,8 @@ void write_data() {
 
   // elapsed
   char elapsed[256];
-  second                    = (double)(now - sim_start_time) / CLOCKS_PER_SEC;
-  tie(hour, minute, second) = cal_h_m_s(second);
+  second                         = (double)(now - sim_start_time) / CLOCKS_PER_SEC;
+  std::tie(hour, minute, second) = cal_h_m_s(second);
   sprintf(elapsed, "elapsed=%dh %02dm %02ds", hour, minute, second);
 
   // ave [s]/[timestep]
@@ -370,8 +372,8 @@ void write_data() {
 
   // remain
   char remain[256];
-  second                    = ((FINISH_TIME - Time) / Time) * ave * timestep;
-  tie(hour, minute, second) = cal_h_m_s(second);
+  second                         = ((FINISH_TIME - Time) / Time) * ave * timestep;
+  std::tie(hour, minute, second) = cal_h_m_s(second);
   if (timestep == 0)
     sprintf(remain, "remain=---");
   else
@@ -434,7 +436,7 @@ void cal_viscosity() {
   rep(i, 0, np) {
     if (type[i] != FLUID) continue;
 
-    Vector3d viscosity_term = Vector3d::Zero();
+    Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
 
     rep(j_neighbor, 0, num_neighbor[i]) {
       int    j    = neighbor_id[i][j_neighbor];
@@ -464,7 +466,7 @@ void        move_particle() {
 }
 
 void collision() {
-  vector<Vector3d> u_after(np);
+  std::vector<Eigen::Vector3d> u_after(np);
 
 #pragma omp parallel for
   rep(i, 0, np) {
@@ -660,8 +662,8 @@ void        increase_diagonal_term() {
 }
 
 void solve_Poisson_eq() {
-  SparseMatrix<double>           A = coef_matrix.sparseView();
-  BiCGSTAB<SparseMatrix<double>> solver;
+  Eigen::SparseMatrix<double>                  A = coef_matrix.sparseView();
+  Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
   solver.compute(A);
   P = solver.solveWithGuess(source_term, P);
 }
@@ -699,7 +701,7 @@ void cal_P_grad() {
   rep(i, 0, np) {
     if (type[i] != FLUID) continue;
 
-    Vector3d grad = Vector3d::Zero();
+    Eigen::Vector3d grad = Eigen::Vector3d::Zero();
 
     rep(j_neighbor, 0, num_neighbor[i]) {
       int j = neighbor_id[i][j_neighbor];
@@ -752,8 +754,8 @@ void cal_courant() {
 
 void end_simulation() {
   int hour, minute, second;
-  second                    = (double)(clock() - sim_start_time) / CLOCKS_PER_SEC;
-  tie(hour, minute, second) = cal_h_m_s(second);
+  second                         = (double)(clock() - sim_start_time) / CLOCKS_PER_SEC;
+  std::tie(hour, minute, second) = cal_h_m_s(second);
   printf("\nTotal Simulation Time = %dh %02dm %02ds\n", hour, minute, second);
 
   if (error_flag == ON)
@@ -844,15 +846,15 @@ double weight(double dis, double re) {
 }
 
 double cal_dis2(int i, int j) {
-  Vector3d x_ij = x[j] - x[i];
+  Eigen::Vector3d x_ij = x[j] - x[i];
   return x_ij.squaredNorm();
 }
 
-tuple<int, int, int> cal_h_m_s(int second) {
+std::tuple<int, int, int> cal_h_m_s(int second) {
   int hour = second / 3600;
   second %= 3600;
   int minute = second / 60;
   second %= 60;
 
-  return forward_as_tuple(hour, minute, second);
+  return std::forward_as_tuple(hour, minute, second);
 }
