@@ -1,3 +1,5 @@
+#include "simulation.hpp"
+
 #include <omp.h>
 
 #include <Eigen/Dense>
@@ -130,15 +132,6 @@ std::vector<Eigen::VectorXd> neighbor_dis2;
 
 Settings settings;
 
-class Simulation {
- public:
-  void run();
-
- private:
-  void startSimulation();
-  void endSimulation();
-};
-
 void Simulation::run() {
   startSimulation();
 
@@ -173,13 +166,6 @@ void Simulation::endSimulation() {
   cout << endl
        << "*** END SIMULATION ***" << endl
        << endl;
-}
-
-int main() {
-  Simulation simulation;
-  simulation.run();
-
-  return 0;
 }
 
 void read_data() {
