@@ -1,5 +1,7 @@
-#include <bits/stdc++.h>  // include all headr files
 #include <omp.h>
+
+#include <fstream>
+#include <iostream>
 
 using namespace std;
 #define rep(i, a, b) for (int i = a; i < b; i++)
@@ -17,8 +19,8 @@ using namespace Eigen;
 #define OUTPUT_INTERVAL 0.05    // [s]
 #define FINISH_TIME 2.0         // [s]
 #define CFL_CONDITION 0.2
-#define IN_PROF_FILE "../input/result/input.prof"
-#define IN_DATA_FILE "../input/result/input.data"
+#define IN_PROF_FILE "input/result/input.prof"
+#define IN_DATA_FILE "input/result/input.data"
 
 // physical properties
 #define KINEMATIC_VISCOSITY (1.0E-6)
