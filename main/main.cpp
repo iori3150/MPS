@@ -74,7 +74,6 @@ void set_parameter();
 void cal_n0_and_lambda();
 void set_bucket();
 void main_loop();
-void end_simulation();
 
 // main_loop()
 void write_data();
@@ -162,10 +161,17 @@ Eigen::VectorXi              num_neighbor;
 std::vector<Eigen::VectorXi> neighbor_id;
 std::vector<Eigen::VectorXd> neighbor_dis2;
 
-int main() {
-  cout << endl
-       << "*** START SIMULATION ***" << endl;
-  sim_start_time = clock();
+class Simulation {
+ public:
+  void run();
+
+ private:
+  void startSimulation();
+  void endSimulation();
+};
+
+void Simulation::run() {
+  startSimulation();
 
   read_data();
   set_parameter();
@@ -173,11 +179,36 @@ int main() {
 
   main_loop();
 
-  end_simulation();
+  endSimulation();
+}
+
+void Simulation::startSimulation() {
+  cout << endl
+       << "*** START SIMULATION ***" << endl;
+  sim_start_time = clock();
+}
+
+void Simulation::endSimulation() {
+  int hour, minute, second;
+  second                         = (double)(clock() - sim_start_time) / CLOCKS_PER_SEC;
+  std::tie(hour, minute, second) = cal_h_m_s(second);
+  printf("\nTotal Simulation Time = %dh %02dm %02ds\n", hour, minute, second);
+
+  if (error_flag == ON)
+    cout << "Error has occured. Please check error.log" << endl;
+  else
+    cout << "There was no error." << endl;
+
+  fclose(log_file);
 
   cout << endl
        << "*** END SIMULATION ***" << endl
        << endl;
+}
+
+int main() {
+  Simulation simulation;
+  simulation.run();
 
   return 0;
 }
@@ -750,20 +781,6 @@ void cal_courant() {
     cerr << "ERROR: Courant number is larger than CFL condition. Courant = " << courant << endl;
     error_flag = ON;
   }
-}
-
-void end_simulation() {
-  int hour, minute, second;
-  second                         = (double)(clock() - sim_start_time) / CLOCKS_PER_SEC;
-  std::tie(hour, minute, second) = cal_h_m_s(second);
-  printf("\nTotal Simulation Time = %dh %02dm %02ds\n", hour, minute, second);
-
-  if (error_flag == ON)
-    cout << "Error has occured. Please check error.log" << endl;
-  else
-    cout << "There was no error." << endl;
-
-  fclose(log_file);
 }
 
 void        store_particle() {
