@@ -1,10 +1,20 @@
-# Common
-BasedOnStyle: Google  
-ColumnLimit: 0 # 1行の最大文字数を制限なしに設定
-
-# Align
-AlignConsecutiveAssignments: Consecutive # 連続した代入演算子を整列
-AlignConsecutiveDeclarations: Consecutive # 連続した宣言を整列
-
-# SingleLine
-AllowShortBlocksOnASingleLine: Always # 短いブロックを1行にまとめるのを許可
+---
+# List in alphabetical order.
+AccessModifierOffset: '-4'
+AlignAfterOpenBracket: 'BlockIndent'
+AlignConsecutiveAssignments: 'Consecutive'
+AllowAllArgumentsOnNextLine: 'false'
+AllowShortFunctionsOnASingleLine: 'None'
+BinPackArguments: 'false'
+BinPackParameters: 'false'
+ColumnLimit: '90'
+IncludeBlocks: 'Regroup'
+IndentCaseLabels: 'false'
+IndentWidth: '4'
+InsertNewlineAtEOF: 'true'
+PointerAlignment: Left
+ReflowComments: 'true'
+SpaceAfterCStyleCast: 'true'
+TabWidth: '4'
+UseTab: 'Never'
+...
