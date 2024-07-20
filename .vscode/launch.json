@@ -1,0 +1,13 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+    {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug main.exe",
+            "program": "${workspaceFolder}/build/main.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+	]
+}
