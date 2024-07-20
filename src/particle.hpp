@@ -10,8 +10,13 @@ public:
     int id;
     ParticleType type;
     Eigen::Vector3d position, velocity, acceleration;
+    double pressure;
 
     Particle(
-        int id, ParticleType type, Eigen::Vector3d position, Eigen::Vector3d velocity
+        int id,
+        ParticleType type,
+        Eigen::Vector3d position,
+        Eigen::Vector3d velocity,
+        double pressure
     );
 };

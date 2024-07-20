@@ -76,7 +76,7 @@ std::tuple<int, int, int> cal_h_m_s(int second);
 std::vector<Particle> particles;
 
 int np; // number of particles
-Eigen::VectorXd P, P_min, n;
+Eigen::VectorXd P_min, n;
 
 // effective radius
 double re_for_n, re2_for_n;
@@ -172,7 +172,6 @@ void read_data() {
     file >> np;
 
     // set std::vector size
-    P.resize(np);
     P_min.resize(np);
     n.resize(np);
 
@@ -191,15 +190,17 @@ void read_data() {
     rep(i, 0, np) {
         int type;
         double x, y, z, u, v, w;
+        double pressure;
         file >> id >> type;
         file >> x >> y >> z;
         file >> u >> v >> w;
-        file >> P[i] >> n[i];
+        file >> pressure >> n[i];
         particles.push_back(Particle(
             id,
             static_cast<ParticleType>(type),
             Eigen::Vector3d(x, y, z),
-            Eigen::Vector3d(u, v, w)
+            Eigen::Vector3d(u, v, w),
+            pressure
         ));
     }
 
@@ -426,7 +427,7 @@ void write_data() {
                 particles[i].velocity[0],
                 particles[i].velocity[1],
                 particles[i].velocity[2],
-                P[i],
+                particles[i].pressure,
                 n[i]
             );
         }
@@ -711,14 +712,17 @@ void solve_Poisson_eq() {
     Eigen::SparseMatrix<double> A = coef_matrix.sparseView();
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
     solver.compute(A);
-    P = solver.solveWithGuess(source_term, P);
+    Eigen::VectorXd pressures = solver.solve(source_term);
+    for (auto& pi : particles) {
+        pi.pressure = pressures[pi.id];
+    }
 }
 
 void remove_negative_P() {
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (P[i] < 0.0)
-            P[i] = 0.0;
+        if (particles[i].pressure < 0.0)
+            particles[i].pressure = 0.0;
     }
 }
 
@@ -728,7 +732,7 @@ void set_P_min() {
         if (boundary_condition[i] == GHOST_OR_DUMMY)
             continue;
 
-        P_min[i] = P[i];
+        P_min[i] = particles[i].pressure;
 
         rep(j_neighbor, 0, num_neighbor[i]) {
             int j = neighbor_id[i][j_neighbor];
@@ -737,8 +741,8 @@ void set_P_min() {
 
             double dis2 = neighbor_dis2[i][j_neighbor];
             if (dis2 < re2_for_grad) {
-                if (P_min[i] > P[j])
-                    P_min[i] = P[j];
+                if (P_min[i] > particles[j].pressure)
+                    P_min[i] = particles[j].pressure;
             }
         }
     }
@@ -763,7 +767,8 @@ void cal_P_grad() {
             if (dis2 < re2_for_grad) {
                 double dis = sqrt(dis2);
                 grad += (particles[j].position - particles[i].position) *
-                        (P[j] - P_min[i]) * weight(dis, re_for_grad) / dis2;
+                        (particles[j].pressure - P_min[i]) * weight(dis, re_for_grad) /
+                        dis2;
             }
         }
 
