@@ -9,10 +9,9 @@ Particle::Particle(
     Eigen::Vector3d velocity,
     double pressure
 ) {
-    this->id           = id;
-    this->type         = type;
-    this->position     = position;
-    this->velocity     = velocity;
-    this->acceleration = Eigen::Vector3d::Zero();
-    this->pressure     = pressure;
+    this->id       = id;
+    this->type     = type;
+    this->position = position;
+    this->velocity = velocity;
+    this->pressure = pressure;
 }

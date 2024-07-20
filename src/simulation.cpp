@@ -76,7 +76,7 @@ std::tuple<int, int, int> cal_h_m_s(int second);
 std::vector<Particle> particles;
 
 int np; // number of particles
-Eigen::VectorXd P_min, n;
+Eigen::VectorXd P_min;
 
 // effective radius
 double re_for_n, re2_for_n;
@@ -173,7 +173,6 @@ void read_data() {
 
     // set std::vector size
     P_min.resize(np);
-    n.resize(np);
 
     num_neighbor.resize(np);
     neighbor_id.resize(np);
@@ -190,11 +189,13 @@ void read_data() {
     rep(i, 0, np) {
         int type;
         double x, y, z, u, v, w;
-        double pressure;
+        double pressure, n;
+
         file >> id >> type;
         file >> x >> y >> z;
         file >> u >> v >> w;
-        file >> pressure >> n[i];
+        file >> pressure >> n;
+
         particles.push_back(Particle(
             id,
             static_cast<ParticleType>(type),
@@ -428,7 +429,7 @@ void write_data() {
                 particles[i].velocity[1],
                 particles[i].velocity[2],
                 particles[i].pressure,
-                n[i]
+                particles[i].numberDensity
             );
         }
         fclose(fp);
@@ -554,7 +555,7 @@ void cal_n() {
         if (particles[i].type == ParticleType::Ghost)
             continue;
 
-        n[i] = 0.0;
+        particles[i].numberDensity = 0.0;
 
         rep(j_neighbor, 0, num_neighbor[i]) {
             int j       = neighbor_id[i][j_neighbor];
@@ -562,7 +563,7 @@ void cal_n() {
 
             if (dis2 < re2_for_n) {
                 double dis = sqrt(dis2);
-                n[i] += weight(dis, re_for_n);
+                particles[i].numberDensity += weight(dis, re_for_n);
             }
         }
     }
@@ -578,7 +579,7 @@ void set_boundary_condition() {
             particles[i].type == ParticleType::DummyWall) {
             boundary_condition[i] = GHOST_OR_DUMMY;
 
-        } else if (n[i] < beta * n0) {
+        } else if (particles[i].numberDensity < beta * n0) {
             boundary_condition[i] = SURFACE_PARTICLE;
 
         } else {
@@ -594,8 +595,8 @@ void set_source_term() {
 #pragma omp parallel for
     rep(i, 0, np) {
         if (boundary_condition[i] == INNER_PARTICLE) {
-            source_term[i] =
-                gamma * (1.0 / (settings.dt * settings.dt)) * ((n[i] - n0) / n0);
+            source_term[i] = gamma * (1.0 / (settings.dt * settings.dt)) *
+                             ((particles[i].numberDensity - n0) / n0);
 
         } else {
             source_term[i] = 0.0;

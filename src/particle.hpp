@@ -9,8 +9,10 @@ private:
 public:
     int id;
     ParticleType type;
-    Eigen::Vector3d position, velocity, acceleration;
+    Eigen::Vector3d position, velocity;
+    Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
     double pressure;
+    double numberDensity = 0;
 
     Particle(
         int id,
