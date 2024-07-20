@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "particle.hpp"
 #include "settings.hpp"
 
 using std::cerr;
@@ -17,12 +18,6 @@ namespace fs = std::filesystem;
 #define rep(i, a, b) for (int i = a; i < b; i++)
 #define ON 1
 #define OFF 0
-
-// type
-#define GHOST -1
-#define FLUID 0
-#define WALL 2
-#define DUMMY_WALL 3
 
 // set_boundary_condition
 #define GHOST_OR_DUMMY -1
@@ -79,8 +74,9 @@ double cal_dis2(int i, int j);
 std::tuple<int, int, int> cal_h_m_s(int second);
 
 // particles
+std::vector<Particle> particles;
+
 int                          np;  // number of particles
-Eigen::VectorXi              type;
 std::vector<Eigen::Vector3d> a, u, x;
 Eigen::VectorXd              P, P_min, n;
 
@@ -181,7 +177,6 @@ void read_data() {
   file >> np;
 
   // set std::vector size
-  type.resize(np);
   a.resize(np);
   u.resize(np);
   x.resize(np);
@@ -202,10 +197,12 @@ void read_data() {
 
   int id;
   rep(i, 0, np) {
-    file >> id >> type[i];
+    int type;
+    file >> id >> type;
     file >> x[i][0] >> x[i][1] >> x[i][2];
     file >> u[i][0] >> u[i][1] >> u[i][2];
     file >> P[i] >> n[i];
+    particles.push_back(Particle(id, static_cast<ParticleType>(type)));
   }
 
   file.close();
@@ -389,10 +386,10 @@ void write_data() {
     fprintf(fp, "%lf\n", Time);
     fprintf(fp, "%d\n", np);
     rep(i, 0, np) {
-      if (type[i] == GHOST) continue;
+      if (particles[i].type == ParticleType::Ghost) continue;
 
       fprintf(fp, "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf % 08.3lf\n",
-              i, type[i],
+              i, particles[i].type,
               x[i][0], x[i][1], x[i][2],
               u[i][0], u[i][1], u[i][2],
               P[i], n[i]);
@@ -406,7 +403,7 @@ void write_data() {
 void        cal_gravity() {
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == FLUID) {
+    if (particles[i].type == ParticleType::Fluid) {
       a[i] = settings.gravity;
 
     } else {
@@ -420,7 +417,7 @@ void cal_viscosity() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] != FLUID) continue;
+    if (particles[i].type != ParticleType::Fluid) continue;
 
     Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
 
@@ -442,7 +439,7 @@ void cal_viscosity() {
 void        move_particle() {
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == FLUID) {
+    if (particles[i].type == ParticleType::Fluid) {
       u[i] += a[i] * settings.dt;
       x[i] += u[i] * settings.dt;
     }
@@ -456,7 +453,7 @@ void collision() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] != FLUID) continue;
+    if (particles[i].type != ParticleType::Fluid) continue;
 
     u_after[i] = u[i];
 
@@ -485,7 +482,7 @@ void collision() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] != FLUID) continue;
+    if (particles[i].type != ParticleType::Fluid) continue;
 
     x[i] += (u_after[i] - u[i]) * settings.dt;
     u[i] = u_after[i];
@@ -505,7 +502,7 @@ void cal_P() {
 void        cal_n() {
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == GHOST) continue;
+    if (particles[i].type == ParticleType::Ghost) continue;
 
     n[i] = 0.0;
 
@@ -527,7 +524,7 @@ void set_boundary_condition() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == GHOST || type[i] == DUMMY_WALL) {
+    if (particles[i].type == ParticleType::Ghost || particles[i].type == ParticleType::DummyWall) {
       boundary_condition[i] = GHOST_OR_DUMMY;
 
     } else if (n[i] < beta * n0) {
@@ -565,7 +562,7 @@ void set_matrix() {
 
     rep(j_neighbor, 0, num_neighbor[i]) {
       int j = neighbor_id[i][j_neighbor];
-      if (type[j] == DUMMY_WALL) continue;
+      if (particles[j].type == ParticleType::DummyWall) continue;
 
       double dis2 = neighbor_dis2[i][j_neighbor];
       if (dis2 < re2_for_lap) {
@@ -670,7 +667,7 @@ void        set_P_min() {
 
     rep(j_neighbor, 0, num_neighbor[i]) {
       int j = neighbor_id[i][j_neighbor];
-      if (type[j] == DUMMY_WALL) continue;
+      if (particles[j].type == ParticleType::DummyWall) continue;
 
       double dis2 = neighbor_dis2[i][j_neighbor];
       if (dis2 < re2_for_grad) {
@@ -685,13 +682,13 @@ void cal_P_grad() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] != FLUID) continue;
+    if (particles[i].type != ParticleType::Fluid) continue;
 
     Eigen::Vector3d grad = Eigen::Vector3d::Zero();
 
     rep(j_neighbor, 0, num_neighbor[i]) {
       int j = neighbor_id[i][j_neighbor];
-      if (type[j] == DUMMY_WALL) continue;
+      if (particles[j].type == ParticleType::DummyWall) continue;
 
       double dis2 = neighbor_dis2[i][j_neighbor];
       if (dis2 < re2_for_grad) {
@@ -708,7 +705,7 @@ void cal_P_grad() {
 void        move_particle_using_P_grad() {
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == FLUID) {
+    if (particles[i].type == ParticleType::Fluid) {
       u[i] += a[i] * settings.dt;
       x[i] += a[i] * settings.dt * settings.dt;
     }
@@ -722,7 +719,7 @@ void cal_courant() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] != FLUID) continue;
+    if (particles[i].type != ParticleType::Fluid) continue;
 
     double courant_i = (u[i].norm() * settings.dt) / settings.particleDistance;
     if (courant_i > courant)
@@ -747,13 +744,13 @@ void        store_particle() {
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == GHOST) continue;
+    if (particles[i].type == ParticleType::Ghost) continue;
     bucket_next[i] = -1;
   }
 
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == GHOST) continue;
+    if (particles[i].type == ParticleType::Ghost) continue;
 
     int ix      = (int)((x[i][0] - x_min) / bucket_length) + 1;
     int iy      = (int)((x[i][1] - y_min) / bucket_length) + 1;
@@ -774,7 +771,7 @@ void        store_particle() {
 void        set_neighbor() {
 #pragma omp parallel for
   rep(i, 0, np) {
-    if (type[i] == GHOST) continue;
+    if (particles[i].type == ParticleType::Ghost) continue;
 
     num_neighbor[i] = 0;
 
