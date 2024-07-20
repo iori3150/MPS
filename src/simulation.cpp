@@ -77,7 +77,7 @@ std::tuple<int, int, int> cal_h_m_s(int second);
 std::vector<Particle> particles;
 
 int                          np;  // number of particles
-std::vector<Eigen::Vector3d> a, u;
+std::vector<Eigen::Vector3d> a;
 Eigen::VectorXd              P, P_min, n;
 
 // effective radius
@@ -178,7 +178,6 @@ void read_data() {
 
   // set std::vector size
   a.resize(np);
-  u.resize(np);
   P.resize(np);
   P_min.resize(np);
   n.resize(np);
@@ -197,12 +196,12 @@ void read_data() {
   int id;
   rep(i, 0, np) {
     int    type;
-    double x, y, z;
+    double x, y, z, u, v, w;
     file >> id >> type;
     file >> x >> y >> z;
-    file >> u[i][0] >> u[i][1] >> u[i][2];
+    file >> u >> v >> w;
     file >> P[i] >> n[i];
-    particles.push_back(Particle(id, static_cast<ParticleType>(type), Eigen::Vector3d(x, y, z)));
+    particles.push_back(Particle(id, static_cast<ParticleType>(type), Eigen::Vector3d(x, y, z), Eigen::Vector3d(u, v, w)));
   }
 
   file.close();
@@ -391,7 +390,7 @@ void write_data() {
       fprintf(fp, "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf % 08.3lf\n",
               i, particles[i].type,
               particles[i].position.x(), particles[i].position.y(), particles[i].position.z(),
-              u[i][0], u[i][1], u[i][2],
+              particles[i].velocity[0], particles[i].velocity[1], particles[i].velocity[2],
               P[i], n[i]);
     }
     fclose(fp);
@@ -427,7 +426,7 @@ void cal_viscosity() {
 
       if (dis2 < re2_for_lap) {
         double dis = sqrt(dis2);
-        viscosity_term += (u[j] - u[i]) * weight(dis, re_for_lap);
+        viscosity_term += (particles[j].velocity - particles[i].velocity) * weight(dis, re_for_lap);
       }
     }
 
@@ -440,8 +439,8 @@ void        move_particle() {
 #pragma omp parallel for
   rep(i, 0, np) {
     if (particles[i].type == ParticleType::Fluid) {
-      u[i] += a[i] * settings.dt;
-      particles[i].position += u[i] * settings.dt;
+      particles[i].velocity += a[i] * settings.dt;
+      particles[i].position += particles[i].velocity * settings.dt;
     }
 
     a[i].setZero();
@@ -455,7 +454,7 @@ void collision() {
   rep(i, 0, np) {
     if (particles[i].type != ParticleType::Fluid) continue;
 
-    u_after[i] = u[i];
+    u_after[i] = particles[i].velocity;
 
     rep(j_neighbor, 0, num_neighbor[i]) {
       int    j    = neighbor_id[i][j_neighbor];
@@ -463,7 +462,7 @@ void collision() {
 
       if (dis2 < collision_dis2) {
         double dis     = sqrt(dis2);
-        double forceDT = -(u[j] - u[i]).dot(particles[j].position - particles[i].position) / dis;  // impulse of collision between particles
+        double forceDT = -(particles[j].velocity - particles[i].velocity).dot(particles[j].position - particles[i].position) / dis;  // impulse of collision between particles
 
         if (forceDT > 0.0) {
           double mi = rho;
@@ -484,8 +483,8 @@ void collision() {
   rep(i, 0, np) {
     if (particles[i].type != ParticleType::Fluid) continue;
 
-    particles[i].position += (u_after[i] - u[i]) * settings.dt;
-    u[i] = u_after[i];
+    particles[i].position += (u_after[i] - particles[i].velocity) * settings.dt;
+    particles[i].velocity = u_after[i];
   }
 }
 
@@ -706,7 +705,7 @@ void        move_particle_using_P_grad() {
 #pragma omp parallel for
   rep(i, 0, np) {
     if (particles[i].type == ParticleType::Fluid) {
-      u[i] += a[i] * settings.dt;
+      particles[i].velocity += a[i] * settings.dt;
       particles[i].position += a[i] * settings.dt * settings.dt;
     }
 
@@ -721,7 +720,7 @@ void cal_courant() {
   rep(i, 0, np) {
     if (particles[i].type != ParticleType::Fluid) continue;
 
-    double courant_i = (u[i].norm() * settings.dt) / settings.particleDistance;
+    double courant_i = (particles[i].velocity.norm() * settings.dt) / settings.particleDistance;
     if (courant_i > courant)
 #pragma omp critical
     {

@@ -14,7 +14,7 @@ class Particle {
  public:
   int             id;
   ParticleType    type;
-  Eigen::Vector3d position;
+  Eigen::Vector3d position, velocity;
 
-  Particle(int id, ParticleType type, Eigen::Vector3d position);
+  Particle(int id, ParticleType type, Eigen::Vector3d position, Eigen::Vector3d velocity);
 };
