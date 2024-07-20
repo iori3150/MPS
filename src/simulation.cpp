@@ -77,7 +77,7 @@ std::tuple<int, int, int> cal_h_m_s(int second);
 std::vector<Particle> particles;
 
 int                          np;  // number of particles
-std::vector<Eigen::Vector3d> a, u, x;
+std::vector<Eigen::Vector3d> a, u;
 Eigen::VectorXd              P, P_min, n;
 
 // effective radius
@@ -179,7 +179,6 @@ void read_data() {
   // set std::vector size
   a.resize(np);
   u.resize(np);
-  x.resize(np);
   P.resize(np);
   P_min.resize(np);
   n.resize(np);
@@ -197,12 +196,13 @@ void read_data() {
 
   int id;
   rep(i, 0, np) {
-    int type;
+    int    type;
+    double x, y, z;
     file >> id >> type;
-    file >> x[i][0] >> x[i][1] >> x[i][2];
+    file >> x >> y >> z;
     file >> u[i][0] >> u[i][1] >> u[i][2];
     file >> P[i] >> n[i];
-    particles.push_back(Particle(id, static_cast<ParticleType>(type)));
+    particles.push_back(Particle(id, static_cast<ParticleType>(type), Eigen::Vector3d(x, y, z)));
   }
 
   file.close();
@@ -390,7 +390,7 @@ void write_data() {
 
       fprintf(fp, "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf % 08.3lf\n",
               i, particles[i].type,
-              x[i][0], x[i][1], x[i][2],
+              particles[i].position.x(), particles[i].position.y(), particles[i].position.z(),
               u[i][0], u[i][1], u[i][2],
               P[i], n[i]);
     }
@@ -441,7 +441,7 @@ void        move_particle() {
   rep(i, 0, np) {
     if (particles[i].type == ParticleType::Fluid) {
       u[i] += a[i] * settings.dt;
-      x[i] += u[i] * settings.dt;
+      particles[i].position += u[i] * settings.dt;
     }
 
     a[i].setZero();
@@ -463,13 +463,13 @@ void collision() {
 
       if (dis2 < collision_dis2) {
         double dis     = sqrt(dis2);
-        double forceDT = -(u[j] - u[i]).dot(x[j] - x[i]) / dis;  // impulse of collision between particles
+        double forceDT = -(u[j] - u[i]).dot(particles[j].position - particles[i].position) / dis;  // impulse of collision between particles
 
         if (forceDT > 0.0) {
           double mi = rho;
           double mj = rho;
           forceDT *= (1.0 + settings.coefficientOfRestitution) * mi * mj / (mi + mj);
-          u_after[i] -= (forceDT / mi) * (x[j] - x[i]) / dis;
+          u_after[i] -= (forceDT / mi) * (particles[j].position - particles[i].position) / dis;
 
 #pragma omp critical
           {
@@ -484,7 +484,7 @@ void collision() {
   rep(i, 0, np) {
     if (particles[i].type != ParticleType::Fluid) continue;
 
-    x[i] += (u_after[i] - u[i]) * settings.dt;
+    particles[i].position += (u_after[i] - u[i]) * settings.dt;
     u[i] = u_after[i];
   }
 }
@@ -693,7 +693,7 @@ void cal_P_grad() {
       double dis2 = neighbor_dis2[i][j_neighbor];
       if (dis2 < re2_for_grad) {
         double dis = sqrt(dis2);
-        grad += (x[j] - x[i]) * (P[j] - P_min[i]) * weight(dis, re_for_grad) / dis2;
+        grad += (particles[j].position - particles[i].position) * (P[j] - P_min[i]) * weight(dis, re_for_grad) / dis2;
       }
     }
 
@@ -707,7 +707,7 @@ void        move_particle_using_P_grad() {
   rep(i, 0, np) {
     if (particles[i].type == ParticleType::Fluid) {
       u[i] += a[i] * settings.dt;
-      x[i] += a[i] * settings.dt * settings.dt;
+      particles[i].position += a[i] * settings.dt * settings.dt;
     }
 
     a[i].Zero();
@@ -752,9 +752,9 @@ void        store_particle() {
   rep(i, 0, np) {
     if (particles[i].type == ParticleType::Ghost) continue;
 
-    int ix      = (int)((x[i][0] - x_min) / bucket_length) + 1;
-    int iy      = (int)((x[i][1] - y_min) / bucket_length) + 1;
-    int iz      = (int)((x[i][2] - z_min) / bucket_length) + 1;
+    int ix      = (int)((particles[i].position.x() - x_min) / bucket_length) + 1;
+    int iy      = (int)((particles[i].position.y() - y_min) / bucket_length) + 1;
+    int iz      = (int)((particles[i].position.z() - z_min) / bucket_length) + 1;
     int ibucket = iz * num_bucket_xy + iy * num_bucket_x + ix;
 
 #pragma omp critical
@@ -775,9 +775,9 @@ void        set_neighbor() {
 
     num_neighbor[i] = 0;
 
-    int ix = int((x[i][0] - x_min) / bucket_length) + 1;
-    int iy = int((x[i][1] - y_min) / bucket_length) + 1;
-    int iz = int((x[i][2] - z_min) / bucket_length) + 1;
+    int ix = int((particles[i].position.x() - x_min) / bucket_length) + 1;
+    int iy = int((particles[i].position.y() - y_min) / bucket_length) + 1;
+    int iz = int((particles[i].position.z() - z_min) / bucket_length) + 1;
 
     for (int jx = ix - 1; jx <= ix + 1; jx++) {
       for (int jy = iy - 1; jy <= iy + 1; jy++) {
@@ -815,7 +815,7 @@ double weight(double dis, double re) {
 }
 
 double cal_dis2(int i, int j) {
-  Eigen::Vector3d x_ij = x[j] - x[i];
+  Eigen::Vector3d x_ij = particles[j].position - particles[i].position;
   return x_ij.squaredNorm();
 }
 
