@@ -48,8 +48,10 @@ void MPS::calGravity(std::vector<Particle>& particles) {
 }
 
 void MPS::calViscosity(std::vector<Particle>& particles) {
-    double A =
-        (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0.laplacian * lambda);
+    const double& n0 = this->n0.laplacian;
+    const double& re = settings.re.laplacian;
+
+    double A = (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0 * lambda);
 
 #pragma omp parallel for
     for (auto& pi : particles) {
@@ -63,8 +65,7 @@ void MPS::calViscosity(std::vector<Particle>& particles) {
             const double dist  = neighbor.distance;
 
             if (dist < settings.re.laplacian) {
-                viscosity_term +=
-                    (pj.velocity - pi.velocity) * weight(dist, settings.re.laplacian);
+                viscosity_term += (pj.velocity - pi.velocity) * weight(dist, re);
             }
         }
 
