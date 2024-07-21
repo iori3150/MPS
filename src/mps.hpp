@@ -25,7 +25,7 @@ private:
 public:
     std::vector<Particle> particles;
 
-    MPS(){};
+    MPS() = default;
     MPS(const Settings& settings, std::vector<Particle>& particles);
 
     void calGravity();

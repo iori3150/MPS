@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bucket.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 
@@ -11,21 +12,20 @@ public:
 
 private:
     MPS mps;
+    Bucket bucket;
 
     void startSimulation();
     void endSimulation();
 
     // main()
-    void read_data(std::vector<Particle>& particles);
+    void read_data(std::vector<Particle>& particles, Domain& domain);
     void set_parameter();
-    void set_bucket();
     void main_loop();
 
     // main_loop()
     void write_data();
 
     // bucket
-    void store_particle();
     void setNeighbors();
 
     // time calculation

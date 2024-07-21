@@ -1,5 +1,6 @@
 #include "simulation.hpp"
 
+#include "bucket.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
@@ -38,23 +39,19 @@ clock_t timestep_start_time;
 int nfile; // number of files
 FILE* log_file;
 
-// bucket
-double x_min, x_max, y_min, y_max, z_min, z_max;
-int num_bucket, num_bucket_x, num_bucket_y, num_bucket_xy, num_bucket_z;
-double bucket_length;
-Eigen::VectorXi bucket_next, bucket_first, bucket_last;
-
 Settings settings;
 
 void Simulation::run() {
     startSimulation();
 
     std::vector<Particle> particles;
-    read_data(particles);
+    Domain domain;
+
+    read_data(particles, domain);
     mps = MPS(settings, particles);
 
     set_parameter();
-    set_bucket();
+    bucket = Bucket(re_max, domain, particles.size());
 
     main_loop();
 
@@ -82,7 +79,7 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
 
-void Simulation::read_data(std::vector<Particle>& particles) {
+void Simulation::read_data(std::vector<Particle>& particles, Domain& domain) {
     std::ifstream file;
 
     file.open(settings.inputProfPath);
@@ -124,12 +121,14 @@ void Simulation::read_data(std::vector<Particle>& particles) {
     }
 
     std::string dummy_string;
-    file >> dummy_string >> x_min;
-    file >> dummy_string >> x_max;
-    file >> dummy_string >> y_min;
-    file >> dummy_string >> y_max;
-    file >> dummy_string >> z_min;
-    file >> dummy_string >> z_max;
+    double xMin, xMax, yMin, yMax, zMin, zMax;
+    file >> dummy_string >> xMin;
+    file >> dummy_string >> xMax;
+    file >> dummy_string >> yMin;
+    file >> dummy_string >> yMax;
+    file >> dummy_string >> zMin;
+    file >> dummy_string >> zMax;
+    domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
 
     file.close();
 }
@@ -152,20 +151,6 @@ void Simulation::set_parameter() {
     log_file = fopen(filename, "w");
 }
 
-void Simulation::set_bucket() {
-    bucket_length = re_max * (1.0 + settings.cflCondition);
-
-    num_bucket_x  = (int) ((x_max - x_min) / bucket_length) + 3;
-    num_bucket_y  = (int) ((y_max - y_min) / bucket_length) + 3;
-    num_bucket_z  = (int) ((z_max - z_min) / bucket_length) + 3;
-    num_bucket_xy = num_bucket_x * num_bucket_y;
-    num_bucket    = num_bucket_x * num_bucket_y * num_bucket_z;
-
-    bucket_first.resize(num_bucket);
-    bucket_last.resize(num_bucket);
-    bucket_next.resize(np);
-}
-
 void Simulation::main_loop() {
     timestep = 0;
 
@@ -174,7 +159,6 @@ void Simulation::main_loop() {
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
-        store_particle();
         setNeighbors();
         mps.calGravity();
         mps.calViscosity();
@@ -294,42 +278,9 @@ void Simulation::write_data() {
     }
 }
 
-void Simulation::store_particle() {
-#pragma omp parallel for
-    rep(i, 0, num_bucket) {
-        bucket_first[i] = -1;
-        bucket_last[i]  = -1;
-    }
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (mps.particles[i].type == ParticleType::Ghost)
-            continue;
-        bucket_next[i] = -1;
-    }
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (mps.particles[i].type == ParticleType::Ghost)
-            continue;
-
-        int ix      = (int) ((mps.particles[i].position.x() - x_min) / bucket_length) + 1;
-        int iy      = (int) ((mps.particles[i].position.y() - y_min) / bucket_length) + 1;
-        int iz      = (int) ((mps.particles[i].position.z() - z_min) / bucket_length) + 1;
-        int ibucket = iz * num_bucket_xy + iy * num_bucket_x + ix;
-
-#pragma omp critical
-        {
-            if (bucket_last[ibucket] == -1)
-                bucket_first[ibucket] = i;
-            else
-                bucket_next[bucket_last[ibucket]] = i;
-            bucket_last[ibucket] = i;
-        }
-    }
-}
-
 void Simulation::setNeighbors() {
+    bucket.storeParticles(mps.particles);
+
 #pragma omp parallel for
     for (auto& pi : mps.particles) {
         if (pi.type == ParticleType::Ghost)
@@ -337,15 +288,15 @@ void Simulation::setNeighbors() {
 
         pi.neighbors.clear();
 
-        int ix = int((pi.position.x() - x_min) / bucket_length) + 1;
-        int iy = int((pi.position.y() - y_min) / bucket_length) + 1;
-        int iz = int((pi.position.z() - z_min) / bucket_length) + 1;
+        int ix = int((pi.position.x() - bucket.domain.x.min) / bucket.length) + 1;
+        int iy = int((pi.position.y() - bucket.domain.y.min) / bucket.length) + 1;
+        int iz = int((pi.position.z() - bucket.domain.z.min) / bucket.length) + 1;
 
         for (int jx = ix - 1; jx <= ix + 1; jx++) {
             for (int jy = iy - 1; jy <= iy + 1; jy++) {
                 for (int jz = iz - 1; jz <= iz + 1; jz++) {
-                    int jbucket = jz * num_bucket_xy + jy * num_bucket_x + jx;
-                    int j       = bucket_first[jbucket];
+                    int jBucket = jx + jy * bucket.numX + jz * bucket.numX * bucket.numY;
+                    int j       = bucket.first[jBucket];
 
                     while (j != -1) {
                         Particle& pj = mps.particles[j];
@@ -355,7 +306,7 @@ void Simulation::setNeighbors() {
                             pi.neighbors.emplace_back(j, dist);
                         }
 
-                        j = bucket_next[j];
+                        j = bucket.next[j];
                     }
                 }
             }
