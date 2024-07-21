@@ -43,4 +43,5 @@ public:
     void setMinimumPressure(std::vector<Particle>& particles);
 
     void calcPressureGradient(std::vector<Particle>& particles);
+    void moveParticleWithPressureGradient(std::vector<Particle>& particles);
 };

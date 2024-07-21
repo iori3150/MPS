@@ -379,6 +379,18 @@ void MPS::calcPressureGradient(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::moveParticleWithPressureGradient(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Fluid) {
+            pi.velocity += pi.acceleration * settings.dt;
+            pi.position += pi.acceleration * settings.dt * settings.dt;
+        }
+
+        pi.acceleration.Zero();
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 

@@ -27,7 +27,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void move_particle_using_P_grad();
 void cal_courant();
 
 // bucket
@@ -268,7 +267,7 @@ void main_loop() {
         setNeighbors(particles);
         mps.calcPressure(particles);
         mps.calcPressureGradient(particles);
-        move_particle_using_P_grad();
+        mps.moveParticleWithPressureGradient(particles);
 
         cal_courant();
 
@@ -373,19 +372,6 @@ void write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void move_particle_using_P_grad() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Fluid) {
-            particles[i].velocity += particles[i].acceleration * settings.dt;
-            particles[i].position +=
-                particles[i].acceleration * settings.dt * settings.dt;
-        }
-
-        particles[i].acceleration.Zero();
     }
 }
 
