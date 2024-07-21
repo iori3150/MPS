@@ -321,11 +321,9 @@ void main_loop() {
         // explicit
         store_particle();
         set_neighbor();
-        // calGravity();
         mps.calGravity(particles);
-        // particles = mps.calGravity();
-        // particles = mps.particles;
         cal_viscosity();
+        // mps.calViscosity(particles);
         move_particle();
 
         set_neighbor();
