@@ -18,22 +18,6 @@ namespace fs = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// main()
-void read_data(std::vector<Particle>& particles);
-void set_parameter();
-void set_bucket();
-void main_loop(std::vector<Particle>& particles);
-
-// main_loop()
-void write_data(std::vector<Particle>& particles);
-
-// bucket
-void store_particle(std::vector<Particle>& particles);
-void setNeighbors(std::vector<Particle>& particles);
-
-// time calculation
-std::tuple<int, int, int> cal_h_m_s(int second);
-
 int np; // number of particles
 
 double re_max, re2_max; // for bucket and neighor
@@ -96,7 +80,7 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
 
-void read_data(std::vector<Particle>& particles) {
+void Simulation::read_data(std::vector<Particle>& particles) {
     std::ifstream file;
 
     file.open(settings.inputProfPath);
@@ -148,7 +132,7 @@ void read_data(std::vector<Particle>& particles) {
     file.close();
 }
 
-void set_parameter() {
+void Simulation::set_parameter() {
 
     // effective radius;
     re_max =
@@ -166,7 +150,7 @@ void set_parameter() {
     log_file = fopen(filename, "w");
 }
 
-void set_bucket() {
+void Simulation::set_bucket() {
     bucket_length = re_max * (1.0 + settings.cflCondition);
 
     num_bucket_x  = (int) ((x_max - x_min) / bucket_length) + 3;
@@ -180,7 +164,7 @@ void set_bucket() {
     bucket_next.resize(np);
 }
 
-void main_loop(std::vector<Particle>& particles) {
+void Simulation::main_loop(std::vector<Particle>& particles) {
     timestep = 0;
 
     write_data(particles);
@@ -212,7 +196,7 @@ void main_loop(std::vector<Particle>& particles) {
     }
 }
 
-void write_data(std::vector<Particle>& particles) {
+void Simulation::write_data(std::vector<Particle>& particles) {
     clock_t now = clock();
     int hour, minute, second;
 
@@ -310,7 +294,7 @@ void write_data(std::vector<Particle>& particles) {
     }
 }
 
-void store_particle(std::vector<Particle>& particles) {
+void Simulation::store_particle(std::vector<Particle>& particles) {
 #pragma omp parallel for
     rep(i, 0, num_bucket) {
         bucket_first[i] = -1;
@@ -345,7 +329,7 @@ void store_particle(std::vector<Particle>& particles) {
     }
 }
 
-void setNeighbors(std::vector<Particle>& particles) {
+void Simulation::setNeighbors(std::vector<Particle>& particles) {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Ghost)
@@ -379,7 +363,7 @@ void setNeighbors(std::vector<Particle>& particles) {
     }
 }
 
-std::tuple<int, int, int> cal_h_m_s(int second) {
+std::tuple<int, int, int> Simulation::cal_h_m_s(int second) {
     int hour = second / 3600;
     second %= 3600;
     int minute = second / 60;
