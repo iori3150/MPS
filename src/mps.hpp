@@ -16,6 +16,8 @@ private:
 
     Settings settings;
 
+    std::vector<double> flagForCheckingBoundaryCondition;
+
     double weight(const double& dist, const double& re);
 
 public:
@@ -32,4 +34,8 @@ public:
     void calcNumberDensity(std::vector<Particle>& particles);
     void setBoundaryCondition(std::vector<Particle>& particles);
     void setSourceTerm(std::vector<Particle>& particles);
+    void setMatrix(std::vector<Particle>& particles);
+    void exceptionalProcessingForBoundaryCondition(std::vector<Particle>& particles);
+    void checkBoundaryCondition(std::vector<Particle>& particles);
+    void increaseDiagonalTerm(std::vector<Particle>& particles);
 };

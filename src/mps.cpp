@@ -1,11 +1,21 @@
 #include "mps.hpp"
 
+#include <iostream>
+
 #define rep(i, a, b) for (int i = a; i < b; i++)
+#define DIRICHLET_BOUNDARY_IS_NOT_CONNECTED 0
+#define DIRICHLET_BOUNDARY_IS_CONNECTED 1
+#define DIRICHLET_BOUNDARY_IS_CHECKED 2
+
+using std::cerr;
+using std::cout;
+using std::endl;
 
 MPS::MPS(const Settings& settings, const int& numberOfParticles) {
     this->settings = settings;
     this->sourceTerm.resize(numberOfParticles);
     this->coeffMatrix.resize(numberOfParticles, numberOfParticles);
+    this->flagForCheckingBoundaryCondition.resize(numberOfParticles);
 
     int iZ_start = -4;
     int iZ_end   = 5;
@@ -175,6 +185,112 @@ void MPS::setSourceTerm(std::vector<Particle>& particles) {
 
         } else {
             sourceTerm[pi.id] = 0.0;
+        }
+    }
+}
+
+void MPS::setMatrix(std::vector<Particle>& particles) {
+    coeffMatrix.setZero();
+
+    const double& n0 = this->n0.laplacian;
+    const double& re = settings.re.laplacian;
+    const double a   = 2.0 * settings.dim / (n0 * lambda);
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.boundaryCondition != BoundaryCondition::Inner)
+            continue;
+
+        for (auto& neighbor : pi.neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
+
+            if (pj.type == ParticleType::DummyWall)
+                continue;
+
+            if (dist < re) {
+                double coef_ij = a * weight(dist, re) / pi.density;
+
+                coeffMatrix(pi.id, pj.id) = (-1.0 * coef_ij);
+                coeffMatrix(pi.id, pi.id) += coef_ij;
+            }
+        }
+
+        coeffMatrix(pi.id, pi.id) +=
+            (settings.compressibility) / (settings.dt * settings.dt);
+    }
+
+    exceptionalProcessingForBoundaryCondition(particles);
+}
+
+void MPS::exceptionalProcessingForBoundaryCondition(std::vector<Particle>& particles) {
+    // If tere is no Dirichlet boundary condition on the fluid,
+    // increase the diagonal terms of the matrix for an exception.
+    // This allows us to solve the matrix without Dirichlet boundary conditions.
+    checkBoundaryCondition(particles);
+    increaseDiagonalTerm(particles);
+}
+
+void MPS::checkBoundaryCondition(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy) {
+            flagForCheckingBoundaryCondition[pi.id] = -1;
+
+        } else if (pi.boundaryCondition == BoundaryCondition::Surface) {
+            flagForCheckingBoundaryCondition[pi.id] = DIRICHLET_BOUNDARY_IS_CONNECTED;
+
+        } else {
+            flagForCheckingBoundaryCondition[pi.id] = DIRICHLET_BOUNDARY_IS_NOT_CONNECTED;
+        }
+    }
+
+    int count;
+    while (true) {
+        count = 0;
+
+        rep(i, 0, particles.size()) {
+            if (flagForCheckingBoundaryCondition[i] != DIRICHLET_BOUNDARY_IS_CONNECTED)
+                continue;
+
+            for (auto& neighbor : particles[i].neighbors) {
+                const Particle& pj = particles[neighbor.id];
+                const double& dist = neighbor.distance;
+                const double& re   = settings.re.laplacian;
+
+                if (flagForCheckingBoundaryCondition[pj.id] !=
+                    DIRICHLET_BOUNDARY_IS_NOT_CONNECTED)
+                    continue;
+
+                if (dist < re)
+                    flagForCheckingBoundaryCondition[pj.id] =
+                        DIRICHLET_BOUNDARY_IS_CONNECTED;
+            }
+
+            flagForCheckingBoundaryCondition[i] = DIRICHLET_BOUNDARY_IS_CHECKED;
+            count++;
+        }
+
+        if (count == 0)
+            break;
+    }
+
+#pragma omp parallel for
+    rep(i, 0, particles.size()) {
+        if (flagForCheckingBoundaryCondition[i] == DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
+#pragma omp critical
+            {
+                cerr << "WARNING: There is no dirichlet boundary condition for particle "
+                     << i << endl;
+            }
+        }
+    }
+}
+
+void MPS::increaseDiagonalTerm(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    rep(i, 0, particles.size()) {
+        if (flagForCheckingBoundaryCondition[i] == DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
+            coeffMatrix(i, i) *= 2.0;
         }
     }
 }
