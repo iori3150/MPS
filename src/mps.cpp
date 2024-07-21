@@ -74,6 +74,17 @@ void MPS::calViscosity(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::moveParticle(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Fluid) {
+            pi.velocity += pi.acceleration * settings.dt;
+            pi.position += pi.velocity * settings.dt;
+        }
+        pi.acceleration.setZero();
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 

@@ -38,7 +38,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void move_particle();
 void collision();
 void cal_P();
 void cal_P_grad();
@@ -308,7 +307,7 @@ void main_loop() {
         setNeighbors(particles);
         mps.calGravity(particles);
         mps.calViscosity(particles);
-        move_particle();
+        mps.moveParticle(particles);
 
         setNeighbors(particles);
         collision();
@@ -422,18 +421,6 @@ void write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void move_particle() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Fluid) {
-            particles[i].velocity += particles[i].acceleration * settings.dt;
-            particles[i].position += particles[i].velocity * settings.dt;
-        }
-
-        particles[i].acceleration.setZero();
     }
 }
 
