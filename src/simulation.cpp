@@ -19,23 +19,20 @@ namespace fs = std::filesystem;
 #define OFF 0
 
 // main()
-void read_data();
+void read_data(std::vector<Particle>& particles);
 void set_parameter();
 void set_bucket();
-void main_loop();
+void main_loop(std::vector<Particle>& particles);
 
 // main_loop()
-void write_data();
+void write_data(std::vector<Particle>& particles);
 
 // bucket
-void store_particle();
+void store_particle(std::vector<Particle>& particles);
 void setNeighbors(std::vector<Particle>& particles);
 
 // time calculation
 std::tuple<int, int, int> cal_h_m_s(int second);
-
-// particles
-std::vector<Particle> particles;
 
 int np; // number of particles
 
@@ -68,11 +65,12 @@ Settings settings;
 void Simulation::run() {
     startSimulation();
 
-    read_data();
+    std::vector<Particle> particles;
+    read_data(particles);
     set_parameter();
     set_bucket();
 
-    main_loop();
+    main_loop(particles);
 
     endSimulation();
 }
@@ -98,7 +96,7 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
 
-void read_data() {
+void read_data(std::vector<Particle>& particles) {
     std::ifstream file;
 
     file.open(settings.inputProfPath);
@@ -182,17 +180,17 @@ void set_bucket() {
     bucket_next.resize(np);
 }
 
-void main_loop() {
+void main_loop(std::vector<Particle>& particles) {
     timestep = 0;
 
-    write_data();
+    write_data(particles);
 
     MPS mps(settings, particles.size());
 
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
-        store_particle();
+        store_particle(particles);
         setNeighbors(particles);
         mps.calGravity(particles);
         mps.calViscosity(particles);
@@ -210,11 +208,11 @@ void main_loop() {
 
         timestep++;
         Time += settings.dt;
-        write_data();
+        write_data(particles);
     }
 }
 
-void write_data() {
+void write_data(std::vector<Particle>& particles) {
     clock_t now = clock();
     int hour, minute, second;
 
@@ -312,7 +310,7 @@ void write_data() {
     }
 }
 
-void store_particle() {
+void store_particle(std::vector<Particle>& particles) {
 #pragma omp parallel for
     rep(i, 0, num_bucket) {
         bucket_first[i] = -1;
