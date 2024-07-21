@@ -24,4 +24,5 @@ public:
     void calGravity(std::vector<Particle>& particles);
     void calViscosity(std::vector<Particle>& particles);
     void moveParticle(std::vector<Particle>& particles);
+    void collision(std::vector<Particle>& particles);
 };

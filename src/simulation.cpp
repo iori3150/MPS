@@ -38,7 +38,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void collision();
 void cal_P();
 void cal_P_grad();
 void move_particle_using_P_grad();
@@ -80,7 +79,6 @@ double re_for_lap, re2_for_lap;
 double re_max, re2_max; // for bucket and neighor
 
 // other parameters
-double rho;
 double n0_for_n;
 double n0_for_grad;
 double n0_for_lap;
@@ -99,9 +97,6 @@ clock_t timestep_start_time;
 // write_data()
 int nfile; // number of files
 FILE* log_file;
-
-// collision()
-double collision_dis, collision_dis2;
 
 // cal_P()
 Eigen::VectorXi boundary_condition, flag_for_checking_boundary_condition;
@@ -185,7 +180,8 @@ void read_data() {
             static_cast<ParticleType>(type),
             Eigen::Vector3d(x, y, z),
             Eigen::Vector3d(u, v, w),
-            pressure
+            pressure,
+            settings.density
         ));
     }
 
@@ -209,7 +205,6 @@ void read_data() {
 }
 
 void set_parameter() {
-    rho = settings.density;
 
     // effective radius;
     re_for_n     = settings.re.numberDensity;
@@ -229,10 +224,6 @@ void set_parameter() {
     char filename[256];
     sprintf(filename, "result/result.log");
     log_file = fopen(filename, "w");
-
-    // collision()
-    collision_dis  = settings.collisionDistance;
-    collision_dis2 = collision_dis * collision_dis;
 
     cal_n0_and_lambda();
 }
@@ -310,7 +301,7 @@ void main_loop() {
         mps.moveParticle(particles);
 
         setNeighbors(particles);
-        collision();
+        mps.collision(particles);
 
         // inplicit
         setNeighbors(particles);
@@ -424,54 +415,6 @@ void write_data() {
     }
 }
 
-void collision() {
-    std::vector<Eigen::Vector3d> u_after(np);
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        u_after[i] = particles[i].velocity;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (dist < collision_dis) {
-                double forceDT = -(pj.velocity - particles[i].velocity)
-                                      .dot(pj.position - particles[i].position) /
-                                 dist; // impulse of collision between particles
-
-                if (forceDT > 0.0) {
-                    double mi = rho;
-                    double mj = rho;
-                    forceDT *=
-                        (1.0 + settings.coefficientOfRestitution) * mi * mj / (mi + mj);
-                    u_after[i] -=
-                        (forceDT / mi) * (pj.position - particles[i].position) / dist;
-
-#pragma omp critical
-                    {
-                        if (neighbor.id > i)
-                            cerr << "WARNING: collision occured between " << i << " and "
-                                 << neighbor.id << " particles." << endl;
-                    }
-                }
-            }
-        }
-    }
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        particles[i].position += (u_after[i] - particles[i].velocity) * settings.dt;
-        particles[i].velocity = u_after[i];
-    }
-}
-
 void cal_P() {
     cal_n();
     set_boundary_condition();
@@ -554,7 +497,7 @@ void set_matrix() {
                 continue;
 
             if (dist < re_for_lap) {
-                double coef_ij = A * weight(dist, re_for_lap) / rho;
+                double coef_ij = A * weight(dist, re_for_lap) / particles[i].density;
 
                 coef_matrix(i, pj.id) = (-1.0 * coef_ij);
                 coef_matrix(i, i) += coef_ij;
@@ -707,7 +650,7 @@ void cal_P_grad() {
         }
 
         grad *= A;
-        particles[i].acceleration = -1.0 * grad / rho;
+        particles[i].acceleration = -1.0 * grad / particles[i].density;
     }
 }
 

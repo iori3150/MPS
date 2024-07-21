@@ -11,8 +11,8 @@ public:
     double distance;
 
     Neighbor(int id, double distance) {
-        this->id        = id;
-        this->distance  = distance;
+        this->id       = id;
+        this->distance = distance;
     };
 };
 
@@ -25,14 +25,18 @@ public:
     Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
     double pressure;
     double numberDensity = 0;
+    double density;
 
     std::vector<Neighbor> neighbors;
 
     Particle(
-        int id,
-        ParticleType type,
-        Eigen::Vector3d position,
-        Eigen::Vector3d velocity,
-        double pressure
+        const int& id,
+        const ParticleType& type,
+        const Eigen::Vector3d& position,
+        const Eigen::Vector3d& velocity,
+        const double& pressure,
+        const double& density
     );
+
+    double inverseDensity() const;
 };

@@ -85,6 +85,45 @@ void MPS::moveParticle(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::collision(std::vector<Particle>& particles) {
+    for (auto& pi : particles) {
+        if (pi.type != ParticleType::Fluid)
+            continue;
+
+        for (auto& neighbor : pi.neighbors) {
+            Particle& pj = particles[neighbor.id];
+            double& dist = neighbor.distance;
+
+            if (pj.type == ParticleType::Fluid && pj.id >= pi.id)
+                continue;
+
+            if (dist < settings.collisionDistance) {
+                double invMassi    = pi.inverseDensity();
+                double invMassj    = pj.inverseDensity();
+                double reducedMass = 1.0 / (invMassi + invMassj);
+
+                Eigen::Vector3d normal  = (pj.position - pi.position).normalized();
+                double relativeVelocity = (pj.velocity - pi.velocity).dot(normal);
+                if (relativeVelocity < 0.0) {
+                    double impulse = -(1.0 + settings.coefficientOfRestitution) *
+                                     relativeVelocity * reducedMass;
+                    pi.velocity -= impulse * invMassi * normal;
+                    pj.velocity += impulse * invMassj * normal;
+
+                    double depth           = settings.collisionDistance - dist;
+                    double positionImpulse = depth * reducedMass;
+                    pi.position -= positionImpulse * invMassi * normal;
+                    pj.position += positionImpulse * invMassj * normal;
+
+                    // cerr << "WARNING: Collision between particles " << pi.id << " and "
+                    // << pj.id << " occurred."
+                    // << endl;
+                }
+            }
+        }
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 
