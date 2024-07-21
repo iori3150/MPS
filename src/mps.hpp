@@ -23,27 +23,30 @@ private:
     double weight(const double& dist, const double& re);
 
 public:
-    MPS(const Settings& settings, const int& numberOfParticles);
+    std::vector<Particle> particles;
 
-    void calGravity(std::vector<Particle>& particles);
-    void calViscosity(std::vector<Particle>& particles);
-    void moveParticle(std::vector<Particle>& particles);
-    void collision(std::vector<Particle>& particles);
+    MPS(){};
+    MPS(const Settings& settings, std::vector<Particle>& particles);
 
-    void calcPressure(std::vector<Particle>& particles);
-    void calcNumberDensity(std::vector<Particle>& particles);
-    void setBoundaryCondition(std::vector<Particle>& particles);
-    void setSourceTerm(std::vector<Particle>& particles);
-    void setMatrix(std::vector<Particle>& particles);
-    void exceptionalProcessingForBoundaryCondition(std::vector<Particle>& particles);
-    void checkBoundaryCondition(std::vector<Particle>& particles);
-    void increaseDiagonalTerm(std::vector<Particle>& particles);
-    void solvePoissonEquation(std::vector<Particle>& particles);
-    void removeNegativePressure(std::vector<Particle>& particles);
-    void setMinimumPressure(std::vector<Particle>& particles);
+    void calGravity();
+    void calViscosity();
+    void moveParticle();
+    void collision();
 
-    void calcPressureGradient(std::vector<Particle>& particles);
-    void moveParticleWithPressureGradient(std::vector<Particle>& particles);
+    void calcPressure();
+    void calcNumberDensity();
+    void setBoundaryCondition();
+    void setSourceTerm();
+    void setMatrix();
+    void exceptionalProcessingForBoundaryCondition();
+    void checkBoundaryCondition();
+    void increaseDiagonalTerm();
+    void solvePoissonEquation();
+    void removeNegativePressure();
+    void setMinimumPressure();
 
-    double calcCourantNumber(std::vector<Particle>& particles);
+    void calcPressureGradient();
+    void moveParticleWithPressureGradient();
+
+    double calcCourantNumber();
 };

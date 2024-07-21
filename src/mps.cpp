@@ -12,11 +12,12 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
-MPS::MPS(const Settings& settings, const int& numberOfParticles) {
-    this->settings = settings;
-    this->sourceTerm.resize(numberOfParticles);
-    this->coeffMatrix.resize(numberOfParticles, numberOfParticles);
-    this->flagForCheckingBoundaryCondition.resize(numberOfParticles);
+MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
+    this->settings  = settings;
+    this->particles = particles;
+    this->sourceTerm.resize(particles.size());
+    this->coeffMatrix.resize(particles.size(), particles.size());
+    this->flagForCheckingBoundaryCondition.resize(particles.size());
 
     int iZ_start = -4;
     int iZ_end   = 5;
@@ -48,7 +49,7 @@ MPS::MPS(const Settings& settings, const int& numberOfParticles) {
     lambda /= n0.laplacian;
 }
 
-void MPS::calGravity(std::vector<Particle>& particles) {
+void MPS::calGravity() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Fluid) {
@@ -60,7 +61,7 @@ void MPS::calGravity(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::calViscosity(std::vector<Particle>& particles) {
+void MPS::calViscosity() {
     const double& n0 = this->n0.laplacian;
     const double& re = settings.re.laplacian;
 
@@ -87,7 +88,7 @@ void MPS::calViscosity(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::moveParticle(std::vector<Particle>& particles) {
+void MPS::moveParticle() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Fluid) {
@@ -98,7 +99,7 @@ void MPS::moveParticle(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::collision(std::vector<Particle>& particles) {
+void MPS::collision() {
     for (auto& pi : particles) {
         if (pi.type != ParticleType::Fluid)
             continue;
@@ -137,17 +138,17 @@ void MPS::collision(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::calcPressure(std::vector<Particle>& particles) {
-    calcNumberDensity(particles);
-    setBoundaryCondition(particles);
-    setSourceTerm(particles);
-    setMatrix(particles);
-    solvePoissonEquation(particles);
-    removeNegativePressure(particles);
-    setMinimumPressure(particles);
+void MPS::calcPressure() {
+    calcNumberDensity();
+    setBoundaryCondition();
+    setSourceTerm();
+    setMatrix();
+    solvePoissonEquation();
+    removeNegativePressure();
+    setMinimumPressure();
 }
 
-void MPS::calcNumberDensity(std::vector<Particle>& particles) {
+void MPS::calcNumberDensity() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Ghost)
@@ -166,7 +167,7 @@ void MPS::calcNumberDensity(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::setBoundaryCondition(std::vector<Particle>& particles) {
+void MPS::setBoundaryCondition() {
     double n0   = this->n0.numberDensity;
     double beta = settings.thresholdForSurfaceDetection;
 
@@ -184,7 +185,7 @@ void MPS::setBoundaryCondition(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::setSourceTerm(std::vector<Particle>& particles) {
+void MPS::setSourceTerm() {
     double n0    = this->n0.numberDensity;
     double gamma = settings.relaxationCoefficientForPressure;
 
@@ -200,7 +201,7 @@ void MPS::setSourceTerm(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::setMatrix(std::vector<Particle>& particles) {
+void MPS::setMatrix() {
     coeffMatrix.setZero();
 
     const double& n0 = this->n0.laplacian;
@@ -230,18 +231,18 @@ void MPS::setMatrix(std::vector<Particle>& particles) {
             (settings.compressibility) / (settings.dt * settings.dt);
     }
 
-    exceptionalProcessingForBoundaryCondition(particles);
+    exceptionalProcessingForBoundaryCondition();
 }
 
-void MPS::exceptionalProcessingForBoundaryCondition(std::vector<Particle>& particles) {
+void MPS::exceptionalProcessingForBoundaryCondition() {
     // If tere is no Dirichlet boundary condition on the fluid,
     // increase the diagonal terms of the matrix for an exception.
     // This allows us to solve the matrix without Dirichlet boundary conditions.
-    checkBoundaryCondition(particles);
-    increaseDiagonalTerm(particles);
+    checkBoundaryCondition();
+    increaseDiagonalTerm();
 }
 
-void MPS::solvePoissonEquation(std::vector<Particle>& particles) {
+void MPS::solvePoissonEquation() {
     Eigen::SparseMatrix<double> A = coeffMatrix.sparseView();
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
     solver.compute(A);
@@ -251,7 +252,7 @@ void MPS::solvePoissonEquation(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::checkBoundaryCondition(std::vector<Particle>& particles) {
+void MPS::checkBoundaryCondition() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy) {
@@ -307,7 +308,7 @@ void MPS::checkBoundaryCondition(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::increaseDiagonalTerm(std::vector<Particle>& particles) {
+void MPS::increaseDiagonalTerm() {
 #pragma omp parallel for
     rep(i, 0, particles.size()) {
         if (flagForCheckingBoundaryCondition[i] == DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
@@ -316,7 +317,7 @@ void MPS::increaseDiagonalTerm(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::removeNegativePressure(std::vector<Particle>& particles) {
+void MPS::removeNegativePressure() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.pressure < 0.0) {
@@ -325,7 +326,7 @@ void MPS::removeNegativePressure(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::setMinimumPressure(std::vector<Particle>& particles) {
+void MPS::setMinimumPressure() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy)
@@ -349,7 +350,7 @@ void MPS::setMinimumPressure(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::calcPressureGradient(std::vector<Particle>& particles) {
+void MPS::calcPressureGradient() {
     const double& n0 = this->n0.gradient;
     const double& re = settings.re.gradient;
 
@@ -379,7 +380,7 @@ void MPS::calcPressureGradient(std::vector<Particle>& particles) {
     }
 }
 
-void MPS::moveParticleWithPressureGradient(std::vector<Particle>& particles) {
+void MPS::moveParticleWithPressureGradient() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Fluid) {
@@ -391,7 +392,7 @@ void MPS::moveParticleWithPressureGradient(std::vector<Particle>& particles) {
     }
 }
 
-double MPS::calcCourantNumber(std::vector<Particle>& particles) {
+double MPS::calcCourantNumber() {
     double maxCourantNumber = 0.0;
 
     for (auto& pi : particles) {

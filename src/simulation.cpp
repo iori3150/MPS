@@ -51,10 +51,12 @@ void Simulation::run() {
 
     std::vector<Particle> particles;
     read_data(particles);
+    mps = MPS(settings, particles);
+
     set_parameter();
     set_bucket();
 
-    main_loop(particles);
+    main_loop();
 
     endSimulation();
 }
@@ -164,39 +166,37 @@ void Simulation::set_bucket() {
     bucket_next.resize(np);
 }
 
-void Simulation::main_loop(std::vector<Particle>& particles) {
+void Simulation::main_loop() {
     timestep = 0;
 
-    write_data(particles);
-
-    MPS mps(settings, particles.size());
+    write_data();
 
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
-        store_particle(particles);
-        setNeighbors(particles);
-        mps.calGravity(particles);
-        mps.calViscosity(particles);
-        mps.moveParticle(particles);
+        store_particle();
+        setNeighbors();
+        mps.calGravity();
+        mps.calViscosity();
+        mps.moveParticle();
 
-        setNeighbors(particles);
-        mps.collision(particles);
+        setNeighbors();
+        mps.collision();
 
-        setNeighbors(particles);
-        mps.calcPressure(particles);
-        mps.calcPressureGradient(particles);
-        mps.moveParticleWithPressureGradient(particles);
+        setNeighbors();
+        mps.calcPressure();
+        mps.calcPressureGradient();
+        mps.moveParticleWithPressureGradient();
 
-        courantNumber = mps.calcCourantNumber(particles);
+        courantNumber = mps.calcCourantNumber();
 
         timestep++;
         Time += settings.dt;
-        write_data(particles);
+        write_data();
     }
 }
 
-void Simulation::write_data(std::vector<Particle>& particles) {
+void Simulation::write_data() {
     clock_t now = clock();
     int hour, minute, second;
 
@@ -269,7 +269,7 @@ void Simulation::write_data(std::vector<Particle>& particles) {
         fprintf(fp, "%lf\n", Time);
         fprintf(fp, "%d\n", np);
         rep(i, 0, np) {
-            if (particles[i].type == ParticleType::Ghost)
+            if (mps.particles[i].type == ParticleType::Ghost)
                 continue;
 
             fprintf(
@@ -277,15 +277,15 @@ void Simulation::write_data(std::vector<Particle>& particles) {
                 "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf "
                 "% 08.3lf\n",
                 i,
-                particles[i].type,
-                particles[i].position.x(),
-                particles[i].position.y(),
-                particles[i].position.z(),
-                particles[i].velocity[0],
-                particles[i].velocity[1],
-                particles[i].velocity[2],
-                particles[i].pressure,
-                particles[i].numberDensity
+                mps.particles[i].type,
+                mps.particles[i].position.x(),
+                mps.particles[i].position.y(),
+                mps.particles[i].position.z(),
+                mps.particles[i].velocity[0],
+                mps.particles[i].velocity[1],
+                mps.particles[i].velocity[2],
+                mps.particles[i].pressure,
+                mps.particles[i].numberDensity
             );
         }
         fclose(fp);
@@ -294,7 +294,7 @@ void Simulation::write_data(std::vector<Particle>& particles) {
     }
 }
 
-void Simulation::store_particle(std::vector<Particle>& particles) {
+void Simulation::store_particle() {
 #pragma omp parallel for
     rep(i, 0, num_bucket) {
         bucket_first[i] = -1;
@@ -303,19 +303,19 @@ void Simulation::store_particle(std::vector<Particle>& particles) {
 
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
+        if (mps.particles[i].type == ParticleType::Ghost)
             continue;
         bucket_next[i] = -1;
     }
 
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
+        if (mps.particles[i].type == ParticleType::Ghost)
             continue;
 
-        int ix      = (int) ((particles[i].position.x() - x_min) / bucket_length) + 1;
-        int iy      = (int) ((particles[i].position.y() - y_min) / bucket_length) + 1;
-        int iz      = (int) ((particles[i].position.z() - z_min) / bucket_length) + 1;
+        int ix      = (int) ((mps.particles[i].position.x() - x_min) / bucket_length) + 1;
+        int iy      = (int) ((mps.particles[i].position.y() - y_min) / bucket_length) + 1;
+        int iz      = (int) ((mps.particles[i].position.z() - z_min) / bucket_length) + 1;
         int ibucket = iz * num_bucket_xy + iy * num_bucket_x + ix;
 
 #pragma omp critical
@@ -329,9 +329,9 @@ void Simulation::store_particle(std::vector<Particle>& particles) {
     }
 }
 
-void Simulation::setNeighbors(std::vector<Particle>& particles) {
+void Simulation::setNeighbors() {
 #pragma omp parallel for
-    for (auto& pi : particles) {
+    for (auto& pi : mps.particles) {
         if (pi.type == ParticleType::Ghost)
             continue;
 
@@ -348,7 +348,7 @@ void Simulation::setNeighbors(std::vector<Particle>& particles) {
                     int j       = bucket_first[jbucket];
 
                     while (j != -1) {
-                        Particle& pj = particles[j];
+                        Particle& pj = mps.particles[j];
 
                         double dist = (pj.position - pi.position).norm();
                         if (j != pi.id && dist < re_max) {
