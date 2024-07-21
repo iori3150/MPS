@@ -39,7 +39,6 @@ void move_particle_using_P_grad();
 void cal_courant();
 
 // cal_P()
-void set_source_term(MPS& mps);
 void set_matrix();
 void exceptional_processing_for_boundary_condition();
 void check_boundary_condition();
@@ -408,27 +407,11 @@ void write_data() {
 void cal_P(MPS& mps) {
     mps.calcNumberDensity(particles);
     mps.setBoundaryCondition(particles);
-    set_source_term(mps);
+    mps.setSourceTerm(particles);
     set_matrix();
     solve_Poisson_eq(mps);
     remove_negative_P();
     set_P_min();
-}
-
-void set_source_term(MPS& mps) {
-    double n0    = n0_for_n;
-    double gamma = settings.relaxationCoefficientForPressure;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].boundaryCondition == BoundaryCondition::Inner) {
-            mps.sourceTerm[i] = gamma * (1.0 / (settings.dt * settings.dt)) *
-                                ((particles[i].numberDensity - n0) / n0);
-
-        } else {
-            mps.sourceTerm[i] = 0.0;
-        }
-    }
 }
 
 void set_matrix() {

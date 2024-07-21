@@ -162,6 +162,22 @@ void MPS::setBoundaryCondition(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::setSourceTerm(std::vector<Particle>& particles) {
+    double n0    = this->n0.numberDensity;
+    double gamma = settings.relaxationCoefficientForPressure;
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.boundaryCondition == BoundaryCondition::Inner) {
+            sourceTerm[pi.id] = gamma * (1.0 / (settings.dt * settings.dt)) *
+                                ((pi.numberDensity - n0) / n0);
+
+        } else {
+            sourceTerm[pi.id] = 0.0;
+        }
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 

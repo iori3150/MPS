@@ -30,4 +30,5 @@ public:
 
     void calcNumberDensity(std::vector<Particle>& particles);
     void setBoundaryCondition(std::vector<Particle>& particles);
+    void setSourceTerm(std::vector<Particle>& particles);
 };
