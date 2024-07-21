@@ -28,9 +28,6 @@ namespace fs = std::filesystem;
 #define DIRICHLET_BOUNDARY_IS_CONNECTED 1
 #define DIRICHLET_BOUNDARY_IS_CHECKED 2
 
-// neighbor
-#define NEIGHBOR_ARRAY_SIZE 50
-
 // main()
 void read_data();
 void set_parameter();
@@ -63,7 +60,7 @@ void set_P_min();
 
 // bucket
 void store_particle();
-void set_neighbor();
+void setNeighbors(std::vector<Particle>& particles);
 
 // common
 double weight(double dis, double re);
@@ -119,11 +116,6 @@ int num_bucket, num_bucket_x, num_bucket_y, num_bucket_xy, num_bucket_z;
 double bucket_length;
 Eigen::VectorXi bucket_next, bucket_first, bucket_last;
 
-// neighbor
-Eigen::VectorXi num_neighbor;
-std::vector<Eigen::VectorXi> neighbor_id;
-std::vector<Eigen::VectorXd> neighbor_dis2;
-
 Settings settings;
 
 void Simulation::run() {
@@ -173,12 +165,6 @@ void read_data() {
 
     // set std::vector size
     P_min.resize(np);
-
-    num_neighbor.resize(np);
-    neighbor_id.resize(np);
-    rep(i, 0, np) neighbor_id[i].resize(NEIGHBOR_ARRAY_SIZE);
-    neighbor_dis2.resize(np);
-    rep(i, 0, np) neighbor_dis2[i].resize(NEIGHBOR_ARRAY_SIZE);
 
     boundary_condition.resize(np);
     source_term.resize(np);
@@ -318,16 +304,16 @@ void main_loop() {
 
         // explicit
         store_particle();
-        set_neighbor();
+        setNeighbors(particles);
         cal_gravity();
         cal_viscosity();
         move_particle();
 
-        set_neighbor();
+        setNeighbors(particles);
         collision();
 
         // inplicit
-        set_neighbor();
+        setNeighbors(particles);
         cal_P();
         cal_P_grad();
         move_particle_using_P_grad();
@@ -461,14 +447,13 @@ void cal_viscosity() {
 
         Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
 
-        rep(j_neighbor, 0, num_neighbor[i]) {
-            int j       = neighbor_id[i][j_neighbor];
-            double dis2 = neighbor_dis2[i][j_neighbor];
+        for (auto& neighbor : particles[i].neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
 
-            if (dis2 < re2_for_lap) {
-                double dis = sqrt(dis2);
-                viscosity_term += (particles[j].velocity - particles[i].velocity) *
-                                  weight(dis, re_for_lap);
+            if (dist < re_for_lap) {
+                viscosity_term +=
+                    (pj.velocity - particles[i].velocity) * weight(dist, re_for_lap);
             }
         }
 
@@ -499,30 +484,28 @@ void collision() {
 
         u_after[i] = particles[i].velocity;
 
-        rep(j_neighbor, 0, num_neighbor[i]) {
-            int j       = neighbor_id[i][j_neighbor];
-            double dis2 = neighbor_dis2[i][j_neighbor];
+        for (auto& neighbor : particles[i].neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
 
-            if (dis2 < collision_dis2) {
-                double dis = sqrt(dis2);
-                double forceDT =
-                    -(particles[j].velocity - particles[i].velocity)
-                         .dot(particles[j].position - particles[i].position) /
-                    dis; // impulse of collision between particles
+            if (dist < collision_dis) {
+                double forceDT = -(pj.velocity - particles[i].velocity)
+                                      .dot(pj.position - particles[i].position) /
+                                 dist; // impulse of collision between particles
 
                 if (forceDT > 0.0) {
                     double mi = rho;
                     double mj = rho;
                     forceDT *=
                         (1.0 + settings.coefficientOfRestitution) * mi * mj / (mi + mj);
-                    u_after[i] -= (forceDT / mi) *
-                                  (particles[j].position - particles[i].position) / dis;
+                    u_after[i] -=
+                        (forceDT / mi) * (pj.position - particles[i].position) / dist;
 
 #pragma omp critical
                     {
-                        if (j > i)
+                        if (neighbor.id > i)
                             cerr << "WARNING: collision occured between " << i << " and "
-                                 << j << " particles." << endl;
+                                 << neighbor.id << " particles." << endl;
                     }
                 }
             }
@@ -557,13 +540,12 @@ void cal_n() {
 
         particles[i].numberDensity = 0.0;
 
-        rep(j_neighbor, 0, num_neighbor[i]) {
-            int j       = neighbor_id[i][j_neighbor];
-            double dis2 = neighbor_dis2[i][j_neighbor];
+        for (auto& neighbor : particles[i].neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
 
-            if (dis2 < re2_for_n) {
-                double dis = sqrt(dis2);
-                particles[i].numberDensity += weight(dis, re_for_n);
+            if (dist < re_for_n) {
+                particles[i].numberDensity += weight(dist, re_for_n);
             }
         }
     }
@@ -614,17 +596,17 @@ void set_matrix() {
         if (boundary_condition[i] != INNER_PARTICLE)
             continue;
 
-        rep(j_neighbor, 0, num_neighbor[i]) {
-            int j = neighbor_id[i][j_neighbor];
-            if (particles[j].type == ParticleType::DummyWall)
+        for (auto& neighbor : particles[i].neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
+
+            if (pj.type == ParticleType::DummyWall)
                 continue;
 
-            double dis2 = neighbor_dis2[i][j_neighbor];
-            if (dis2 < re2_for_lap) {
-                double dis     = sqrt(dis2);
-                double coef_ij = A * weight(dis, re_for_lap) / rho;
+            if (dist < re_for_lap) {
+                double coef_ij = A * weight(dist, re_for_lap) / rho;
 
-                coef_matrix(i, j) = (-1.0 * coef_ij);
+                coef_matrix(i, pj.id) = (-1.0 * coef_ij);
                 coef_matrix(i, i) += coef_ij;
             }
         }
@@ -666,15 +648,16 @@ void check_boundary_condition() {
                 DIRICHLET_BOUNDARY_IS_CONNECTED)
                 continue;
 
-            rep(j_neighbor, 0, num_neighbor[i]) {
-                int j = neighbor_id[i][j_neighbor];
-                if (flag_for_checking_boundary_condition[j] !=
+            for (auto& neighbor : particles[i].neighbors) {
+                const Particle& pj = particles[neighbor.id];
+                const double& dist = neighbor.distance;
+
+                if (flag_for_checking_boundary_condition[pj.id] !=
                     DIRICHLET_BOUNDARY_IS_NOT_CONNECTED)
                     continue;
 
-                double dis2 = neighbor_dis2[i][j_neighbor];
-                if (dis2 < re2_for_lap)
-                    flag_for_checking_boundary_condition[j] =
+                if (dist < re_for_lap)
+                    flag_for_checking_boundary_condition[pj.id] =
                         DIRICHLET_BOUNDARY_IS_CONNECTED;
             }
 
@@ -735,15 +718,16 @@ void set_P_min() {
 
         P_min[i] = particles[i].pressure;
 
-        rep(j_neighbor, 0, num_neighbor[i]) {
-            int j = neighbor_id[i][j_neighbor];
-            if (particles[j].type == ParticleType::DummyWall)
+        for (auto& neighbor : particles[i].neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
+
+            if (pj.type == ParticleType::DummyWall)
                 continue;
 
-            double dis2 = neighbor_dis2[i][j_neighbor];
-            if (dis2 < re2_for_grad) {
-                if (P_min[i] > particles[j].pressure)
-                    P_min[i] = particles[j].pressure;
+            if (dist < re_for_grad) {
+                if (P_min[i] > pj.pressure)
+                    P_min[i] = pj.pressure;
             }
         }
     }
@@ -759,17 +743,16 @@ void cal_P_grad() {
 
         Eigen::Vector3d grad = Eigen::Vector3d::Zero();
 
-        rep(j_neighbor, 0, num_neighbor[i]) {
-            int j = neighbor_id[i][j_neighbor];
-            if (particles[j].type == ParticleType::DummyWall)
+        for (auto& neighbor : particles[i].neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
+
+            if (pj.type == ParticleType::DummyWall)
                 continue;
 
-            double dis2 = neighbor_dis2[i][j_neighbor];
-            if (dis2 < re2_for_grad) {
-                double dis = sqrt(dis2);
-                grad += (particles[j].position - particles[i].position) *
-                        (particles[j].pressure - P_min[i]) * weight(dis, re_for_grad) /
-                        dis2;
+            if (dist < re_for_grad) {
+                grad += (pj.position - particles[i].position) * (pj.pressure - P_min[i]) *
+                        weight(dist, re_for_grad) / (dist * dist);
             }
         }
 
@@ -850,17 +833,17 @@ void store_particle() {
     }
 }
 
-void set_neighbor() {
+void setNeighbors(std::vector<Particle>& particles) {
 #pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Ghost)
             continue;
 
-        num_neighbor[i] = 0;
+        pi.neighbors.clear();
 
-        int ix = int((particles[i].position.x() - x_min) / bucket_length) + 1;
-        int iy = int((particles[i].position.y() - y_min) / bucket_length) + 1;
-        int iz = int((particles[i].position.z() - z_min) / bucket_length) + 1;
+        int ix = int((pi.position.x() - x_min) / bucket_length) + 1;
+        int iy = int((pi.position.y() - y_min) / bucket_length) + 1;
+        int iz = int((pi.position.z() - z_min) / bucket_length) + 1;
 
         for (int jx = ix - 1; jx <= ix + 1; jx++) {
             for (int jy = iy - 1; jy <= iy + 1; jy++) {
@@ -869,20 +852,13 @@ void set_neighbor() {
                     int j       = bucket_first[jbucket];
 
                     while (j != -1) {
-                        double dis2 = cal_dis2(i, j);
-                        if (j != i && dis2 < re2_max) {
-                            if (num_neighbor[i] + 1 == NEIGHBOR_ARRAY_SIZE) {
-                                cerr << "ERROR: Neighbor size of particle " << i
-                                     << " is bigger than expected." << endl;
-                                cout << "ERROR: Neighbor size of particle " << i
-                                     << " is bigger than expected." << endl;
-                                exit(1);
-                            }
+                        Particle& pj = particles[j];
 
-                            neighbor_id[i][num_neighbor[i]]   = j;
-                            neighbor_dis2[i][num_neighbor[i]] = dis2;
-                            num_neighbor[i]++;
+                        double dist = (pj.position - pi.position).norm();
+                        if (j != pi.id && dist < re_max) {
+                            pi.neighbors.emplace_back(j, dist);
                         }
+
                         j = bucket_next[j];
                     }
                 }
