@@ -39,7 +39,6 @@ void move_particle_using_P_grad();
 void cal_courant();
 
 // cal_P()
-void set_boundary_condition();
 void set_source_term();
 void set_matrix();
 void exceptional_processing_for_boundary_condition();
@@ -410,31 +409,12 @@ void write_data() {
 
 void cal_P(MPS& mps) {
     mps.calcNumberDensity(particles);
-    set_boundary_condition();
+    mps.setBoundaryCondition(particles);
     set_source_term();
     set_matrix();
     solve_Poisson_eq();
     remove_negative_P();
     set_P_min();
-}
-
-void set_boundary_condition() {
-    double n0   = n0_for_n;
-    double beta = settings.thresholdForSurfaceDetection;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost ||
-            particles[i].type == ParticleType::DummyWall) {
-            particles[i].boundaryCondition = BoundaryCondition::GhostOrDummy;
-
-        } else if (particles[i].numberDensity < beta * n0) {
-            particles[i].boundaryCondition = BoundaryCondition::Surface;
-
-        } else {
-            particles[i].boundaryCondition = BoundaryCondition::Inner;
-        }
-    }
 }
 
 void set_source_term() {

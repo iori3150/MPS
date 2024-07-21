@@ -26,6 +26,7 @@ MPS::MPS(Settings& settings, std::vector<Particle>& particles) {
                 double dist  = r.norm();
                 double dist2 = dist * dist;
 
+                n0.numberDensity += weight(dist, settings.re.numberDensity);
                 n0.gradient += weight(dist, settings.re.gradient);
                 n0.laplacian += weight(dist, settings.re.laplacian);
                 lambda += dist2 * weight(dist, settings.re.laplacian);
@@ -139,6 +140,24 @@ void MPS::calcNumberDensity(std::vector<Particle>& particles) {
             if (dist < re) {
                 pi.numberDensity += weight(dist, re);
             }
+        }
+    }
+}
+
+void MPS::setBoundaryCondition(std::vector<Particle>& particles) {
+    double n0   = this->n0.numberDensity;
+    double beta = settings.thresholdForSurfaceDetection;
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
+            pi.boundaryCondition = BoundaryCondition::GhostOrDummy;
+
+        } else if (pi.numberDensity < beta * n0) {
+            pi.boundaryCondition = BoundaryCondition::Surface;
+
+        } else {
+            pi.boundaryCondition = BoundaryCondition::Inner;
         }
     }
 }

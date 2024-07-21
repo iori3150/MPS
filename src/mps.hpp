@@ -8,10 +8,11 @@
 class MPS {
 private:
     struct {
-        double gradient  = 0;
-        double laplacian = 0;
+        double numberDensity = 0.0;
+        double gradient      = 0.0;
+        double laplacian     = 0.0;
     } n0;
-    double lambda = 0;
+    double lambda = 0.0;
 
     Settings settings;
     std::vector<Particle> particles;
@@ -27,4 +28,5 @@ public:
     void collision(std::vector<Particle>& particles);
 
     void calcNumberDensity(std::vector<Particle>& particles);
+    void setBoundaryCondition(std::vector<Particle>& particles);
 };
