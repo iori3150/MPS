@@ -16,6 +16,8 @@ public:
     };
 };
 
+enum class BoundaryCondition { GhostOrDummy, Surface, Inner };
+
 class Particle {
 private:
 public:
@@ -28,6 +30,8 @@ public:
     double density;
 
     std::vector<Neighbor> neighbors;
+
+    BoundaryCondition boundaryCondition;
 
     Particle(
         const int& id,

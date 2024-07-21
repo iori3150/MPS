@@ -19,11 +19,6 @@ namespace fs = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// set_boundary_condition
-#define GHOST_OR_DUMMY -1
-#define SURFACE_PARTICLE 1
-#define INNER_PARTICLE 0
-
 // check_boundary_condition()
 #define DIRICHLET_BOUNDARY_IS_NOT_CONNECTED 0
 #define DIRICHLET_BOUNDARY_IS_CONNECTED 1
@@ -98,7 +93,7 @@ int nfile; // number of files
 FILE* log_file;
 
 // cal_P()
-Eigen::VectorXi boundary_condition, flag_for_checking_boundary_condition;
+Eigen::VectorXi flag_for_checking_boundary_condition;
 Eigen::VectorXd source_term;
 Eigen::MatrixXd coef_matrix;
 
@@ -158,7 +153,6 @@ void read_data() {
     // set std::vector size
     P_min.resize(np);
 
-    boundary_condition.resize(np);
     source_term.resize(np);
     flag_for_checking_boundary_condition.resize(np);
     coef_matrix.resize(np, np);
@@ -432,13 +426,13 @@ void set_boundary_condition() {
     rep(i, 0, np) {
         if (particles[i].type == ParticleType::Ghost ||
             particles[i].type == ParticleType::DummyWall) {
-            boundary_condition[i] = GHOST_OR_DUMMY;
+            particles[i].boundaryCondition = BoundaryCondition::GhostOrDummy;
 
         } else if (particles[i].numberDensity < beta * n0) {
-            boundary_condition[i] = SURFACE_PARTICLE;
+            particles[i].boundaryCondition = BoundaryCondition::Surface;
 
         } else {
-            boundary_condition[i] = INNER_PARTICLE;
+            particles[i].boundaryCondition = BoundaryCondition::Inner;
         }
     }
 }
@@ -449,7 +443,7 @@ void set_source_term() {
 
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (boundary_condition[i] == INNER_PARTICLE) {
+        if (particles[i].boundaryCondition == BoundaryCondition::Inner) {
             source_term[i] = gamma * (1.0 / (settings.dt * settings.dt)) *
                              ((particles[i].numberDensity - n0) / n0);
 
@@ -466,7 +460,7 @@ void set_matrix() {
     double A  = 2.0 * settings.dim / (n0 * lambda);
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (boundary_condition[i] != INNER_PARTICLE)
+        if (particles[i].boundaryCondition != BoundaryCondition::Inner)
             continue;
 
         for (auto& neighbor : particles[i].neighbors) {
@@ -501,10 +495,10 @@ void exceptional_processing_for_boundary_condition() {
 void check_boundary_condition() {
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (boundary_condition[i] == GHOST_OR_DUMMY) {
-            flag_for_checking_boundary_condition[i] = GHOST_OR_DUMMY;
+        if (particles[i].boundaryCondition == BoundaryCondition::GhostOrDummy) {
+            flag_for_checking_boundary_condition[i] = -1;
 
-        } else if (boundary_condition[i] == SURFACE_PARTICLE) {
+        } else if (particles[i].boundaryCondition == BoundaryCondition::Surface) {
             flag_for_checking_boundary_condition[i] = DIRICHLET_BOUNDARY_IS_CONNECTED;
 
         } else {
@@ -586,7 +580,7 @@ void remove_negative_P() {
 void set_P_min() {
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (boundary_condition[i] == GHOST_OR_DUMMY)
+        if (particles[i].boundaryCondition == BoundaryCondition::GhostOrDummy)
             continue;
 
         P_min[i] = particles[i].pressure;
