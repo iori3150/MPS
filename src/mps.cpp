@@ -391,6 +391,26 @@ void MPS::moveParticleWithPressureGradient(std::vector<Particle>& particles) {
     }
 }
 
+double MPS::calcCourantNumber(std::vector<Particle>& particles) {
+    double maxCourantNumber = 0.0;
+
+    for (auto& pi : particles) {
+        if (pi.type != ParticleType::Fluid)
+            continue;
+
+        double courantNumeber =
+            (pi.velocity.norm() * settings.dt) / settings.particleDistance;
+        maxCourantNumber = std::max(maxCourantNumber, courantNumeber);
+    }
+
+    if (maxCourantNumber > settings.cflCondition) {
+        cerr << "ERROR: Courant number is larger than CFL condition. Courant = "
+             << maxCourantNumber << endl;
+    }
+
+    return maxCourantNumber;
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 

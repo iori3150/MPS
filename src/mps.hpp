@@ -44,4 +44,6 @@ public:
 
     void calcPressureGradient(std::vector<Particle>& particles);
     void moveParticleWithPressureGradient(std::vector<Particle>& particles);
+
+    double calcCourantNumber(std::vector<Particle>& particles);
 };

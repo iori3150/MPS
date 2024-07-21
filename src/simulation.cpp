@@ -27,7 +27,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void cal_courant();
 
 // bucket
 void store_particle();
@@ -56,7 +55,7 @@ double n0_for_n;
 double n0_for_grad;
 double n0_for_lap;
 double lambda; // used for laplacian calculation
-double courant;
+double courantNumber;
 
 // main()
 clock_t sim_start_time;
@@ -253,7 +252,6 @@ void main_loop() {
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
-        // explicit
         store_particle();
         setNeighbors(particles);
         mps.calGravity(particles);
@@ -263,13 +261,12 @@ void main_loop() {
         setNeighbors(particles);
         mps.collision(particles);
 
-        // inplicit
         setNeighbors(particles);
         mps.calcPressure(particles);
         mps.calcPressureGradient(particles);
         mps.moveParticleWithPressureGradient(particles);
 
-        cal_courant();
+        courantNumber = mps.calcCourantNumber(particles);
 
         timestep++;
         Time += settings.dt;
@@ -317,7 +314,7 @@ void write_data() {
         ave,
         last,
         nfile,
-        courant
+        courantNumber
     );
 
     // log file output
@@ -334,7 +331,7 @@ void write_data() {
         ave,
         last,
         nfile,
-        courant
+        courantNumber
     );
 
     // error file output
@@ -372,30 +369,6 @@ void write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void cal_courant() {
-    courant = 0.0;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        double courant_i =
-            (particles[i].velocity.norm() * settings.dt) / settings.particleDistance;
-        if (courant_i > courant)
-#pragma omp critical
-        {
-            courant = courant_i;
-        }
-    }
-
-    if (courant > settings.cflCondition) {
-        cerr << "ERROR: Courant number is larger than CFL condition. Courant = "
-             << courant << endl;
-        error_flag = ON;
     }
 }
 
