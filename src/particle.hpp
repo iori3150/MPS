@@ -25,7 +25,7 @@ public:
     ParticleType type;
     Eigen::Vector3d position, velocity;
     Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
-    double pressure;
+    double pressure, minimumPressure;
     double numberDensity = 0;
     double density;
 

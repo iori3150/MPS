@@ -32,10 +32,6 @@ void cal_P_grad();
 void move_particle_using_P_grad();
 void cal_courant();
 
-// cal_P()
-void remove_negative_P();
-void set_P_min();
-
 // bucket
 void store_particle();
 void setNeighbors(std::vector<Particle>& particles);
@@ -51,7 +47,6 @@ std::tuple<int, int, int> cal_h_m_s(int second);
 std::vector<Particle> particles;
 
 int np; // number of particles
-Eigen::VectorXd P_min;
 
 // effective radius
 double re_for_n, re2_for_n;
@@ -131,9 +126,6 @@ void read_data() {
 
     file >> Time;
     file >> np;
-
-    // set std::vector size
-    P_min.resize(np);
 
     int id;
     rep(i, 0, np) {
@@ -392,39 +384,8 @@ void cal_P(MPS& mps) {
     mps.setSourceTerm(particles);
     mps.setMatrix(particles);
     mps.solvePoissonEquation(particles);
-    remove_negative_P();
-    set_P_min();
-}
-
-void remove_negative_P() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].pressure < 0.0)
-            particles[i].pressure = 0.0;
-    }
-}
-
-void set_P_min() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].boundaryCondition == BoundaryCondition::GhostOrDummy)
-            continue;
-
-        P_min[i] = particles[i].pressure;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (pj.type == ParticleType::DummyWall)
-                continue;
-
-            if (dist < re_for_grad) {
-                if (P_min[i] > pj.pressure)
-                    P_min[i] = pj.pressure;
-            }
-        }
-    }
+    mps.removeNegativePressure(particles);
+    mps.setMinimumPressure(particles);
 }
 
 void cal_P_grad() {
@@ -445,7 +406,8 @@ void cal_P_grad() {
                 continue;
 
             if (dist < re_for_grad) {
-                grad += (pj.position - particles[i].position) * (pj.pressure - P_min[i]) *
+                grad += (pj.position - particles[i].position) *
+                        (pj.pressure - particles[i].minimumPressure) *
                         weight(dist, re_for_grad) / (dist * dist);
             }
         }

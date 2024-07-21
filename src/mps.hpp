@@ -38,4 +38,6 @@ public:
     void checkBoundaryCondition(std::vector<Particle>& particles);
     void increaseDiagonalTerm(std::vector<Particle>& particles);
     void solvePoissonEquation(std::vector<Particle>& particles);
+    void removeNegativePressure(std::vector<Particle>& particles);
+    void setMinimumPressure(std::vector<Particle>& particles);
 };

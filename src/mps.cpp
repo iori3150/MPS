@@ -306,6 +306,39 @@ void MPS::increaseDiagonalTerm(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::removeNegativePressure(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.pressure < 0.0) {
+            pi.pressure = 0.0;
+        }
+    }
+}
+
+void MPS::setMinimumPressure(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy)
+            continue;
+
+        pi.minimumPressure = pi.pressure;
+
+        for (auto& neighbor : pi.neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
+            const double& re   = settings.re.gradient;
+
+            if (pj.type == ParticleType::DummyWall)
+                continue;
+
+            if (dist < re) {
+                if (pi.minimumPressure > pj.pressure)
+                    pi.minimumPressure = pj.pressure;
+            }
+        }
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 
