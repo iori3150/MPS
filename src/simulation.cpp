@@ -5,7 +5,6 @@
 #include "settings.hpp"
 
 #include <Eigen/Dense>
-#include <Eigen/IterativeLinearSolvers>
 #include <fstream>
 #include <iostream>
 #include <omp.h>
@@ -34,7 +33,6 @@ void move_particle_using_P_grad();
 void cal_courant();
 
 // cal_P()
-void solve_Poisson_eq(MPS& mps);
 void remove_negative_P();
 void set_P_min();
 
@@ -393,18 +391,9 @@ void cal_P(MPS& mps) {
     mps.setBoundaryCondition(particles);
     mps.setSourceTerm(particles);
     mps.setMatrix(particles);
-    solve_Poisson_eq(mps);
+    mps.solvePoissonEquation(particles);
     remove_negative_P();
     set_P_min();
-}
-void solve_Poisson_eq(MPS& mps) {
-    Eigen::SparseMatrix<double> A = mps.coeffMatrix.sparseView();
-    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
-    solver.compute(A);
-    Eigen::VectorXd pressures = solver.solve(mps.sourceTerm);
-    for (auto& pi : particles) {
-        pi.pressure = pressures[pi.id];
-    }
 }
 
 void remove_negative_P() {

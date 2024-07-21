@@ -1,5 +1,6 @@
 #include "mps.hpp"
 
+#include <Eigen/IterativeLinearSolvers>
 #include <iostream>
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
@@ -228,6 +229,16 @@ void MPS::exceptionalProcessingForBoundaryCondition(std::vector<Particle>& parti
     // This allows us to solve the matrix without Dirichlet boundary conditions.
     checkBoundaryCondition(particles);
     increaseDiagonalTerm(particles);
+}
+
+void MPS::solvePoissonEquation(std::vector<Particle>& particles) {
+    Eigen::SparseMatrix<double> A = coeffMatrix.sparseView();
+    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
+    solver.compute(A);
+    Eigen::VectorXd pressures = solver.solve(sourceTerm);
+    for (auto& pi : particles) {
+        pi.pressure = pressures[pi.id];
+    }
 }
 
 void MPS::checkBoundaryCondition(std::vector<Particle>& particles) {

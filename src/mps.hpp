@@ -16,14 +16,13 @@ private:
 
     Settings settings;
 
+    Eigen::VectorXd sourceTerm;
+    Eigen::MatrixXd coeffMatrix;
     std::vector<double> flagForCheckingBoundaryCondition;
 
     double weight(const double& dist, const double& re);
 
 public:
-    Eigen::VectorXd sourceTerm;
-    Eigen::MatrixXd coeffMatrix;
-
     MPS(const Settings& settings, const int& numberOfParticles);
 
     void calGravity(std::vector<Particle>& particles);
@@ -38,4 +37,5 @@ public:
     void exceptionalProcessingForBoundaryCondition(std::vector<Particle>& particles);
     void checkBoundaryCondition(std::vector<Particle>& particles);
     void increaseDiagonalTerm(std::vector<Particle>& particles);
+    void solvePoissonEquation(std::vector<Particle>& particles);
 };
