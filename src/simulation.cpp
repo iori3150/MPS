@@ -27,7 +27,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void cal_P(MPS& mps);
 void cal_P_grad();
 void move_particle_using_P_grad();
 void cal_courant();
@@ -268,7 +267,7 @@ void main_loop() {
 
         // inplicit
         setNeighbors(particles);
-        cal_P(mps);
+        mps.calcPressure(particles);
         cal_P_grad();
         move_particle_using_P_grad();
 
@@ -376,16 +375,6 @@ void write_data() {
 
         nfile++;
     }
-}
-
-void cal_P(MPS& mps) {
-    mps.calcNumberDensity(particles);
-    mps.setBoundaryCondition(particles);
-    mps.setSourceTerm(particles);
-    mps.setMatrix(particles);
-    mps.solvePoissonEquation(particles);
-    mps.removeNegativePressure(particles);
-    mps.setMinimumPressure(particles);
 }
 
 void cal_P_grad() {

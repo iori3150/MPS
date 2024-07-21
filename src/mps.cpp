@@ -137,6 +137,16 @@ void MPS::collision(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::calcPressure(std::vector<Particle>& particles) {
+    calcNumberDensity(particles);
+    setBoundaryCondition(particles);
+    setSourceTerm(particles);
+    setMatrix(particles);
+    solvePoissonEquation(particles);
+    removeNegativePressure(particles);
+    setMinimumPressure(particles);
+}
+
 void MPS::calcNumberDensity(std::vector<Particle>& particles) {
 #pragma omp parallel for
     for (auto& pi : particles) {
