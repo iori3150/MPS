@@ -21,7 +21,6 @@ namespace fs = std::filesystem;
 // main()
 void read_data();
 void set_parameter();
-void cal_n0_and_lambda();
 void set_bucket();
 void main_loop();
 
@@ -32,10 +31,6 @@ void write_data();
 void store_particle();
 void setNeighbors(std::vector<Particle>& particles);
 
-// common
-double weight(double dis, double re);
-double cal_dis2(int i, int j);
-
 // time calculation
 std::tuple<int, int, int> cal_h_m_s(int second);
 
@@ -44,17 +39,9 @@ std::vector<Particle> particles;
 
 int np; // number of particles
 
-// effective radius
-double re_for_n, re2_for_n;
-double re_for_grad, re2_for_grad;
-double re_for_lap, re2_for_lap;
 double re_max, re2_max; // for bucket and neighor
 
 // other parameters
-double n0_for_n;
-double n0_for_grad;
-double n0_for_lap;
-double lambda; // used for laplacian calculation
 double courantNumber;
 
 // main()
@@ -166,14 +153,10 @@ void read_data() {
 void set_parameter() {
 
     // effective radius;
-    re_for_n     = settings.re.numberDensity;
-    re2_for_n    = re_for_n * re_for_n;
-    re_for_grad  = settings.re.gradient;
-    re2_for_grad = re_for_grad * re_for_grad;
-    re_for_lap   = settings.re.laplacian;
-    re2_for_lap  = re_for_lap * re_for_lap;
-    re_max       = std::max({re_for_n, re_for_grad, re_for_lap});
-    re2_max      = re_max * re_max;
+    re_max =
+        std::max({settings.re.numberDensity, settings.re.gradient, settings.re.laplacian}
+        );
+    re2_max = re_max * re_max;
 
     // main_loop()
     Time = 0.0;
@@ -183,49 +166,6 @@ void set_parameter() {
     char filename[256];
     sprintf(filename, "result/result.log");
     log_file = fopen(filename, "w");
-
-    cal_n0_and_lambda();
-}
-
-void cal_n0_and_lambda() {
-    n0_for_n    = 0.0;
-    n0_for_grad = 0.0;
-    n0_for_lap  = 0.0;
-    lambda      = 0.0;
-
-    int iZ_start, iZ_end;
-    if (settings.dim == 2) {
-        iZ_start = 0;
-        iZ_end   = 1;
-    } else {
-        iZ_start = -4;
-        iZ_end   = 5;
-    }
-
-    double xi, yi, zi;
-    double dis, dis2;
-    for (int iX = -4; iX < 5; iX++) {
-        for (int iY = -4; iY < 5; iY++) {
-            for (int iZ = iZ_start; iZ < iZ_end; iZ++) {
-                if (((iX == 0) && (iY == 0)) && (iZ == 0))
-                    continue;
-
-                xi   = settings.particleDistance * (double) (iX);
-                yi   = settings.particleDistance * (double) (iY);
-                zi   = settings.particleDistance * (double) (iZ);
-                dis2 = xi * xi + yi * yi + zi * zi;
-
-                dis = sqrt(dis2);
-
-                n0_for_n += weight(dis, re_for_n);
-                n0_for_grad += weight(dis, re_for_grad);
-                n0_for_lap += weight(dis, re_for_lap);
-
-                lambda += dis2 * weight(dis, re_for_lap);
-            }
-        }
-    }
-    lambda /= n0_for_lap;
 }
 
 void set_bucket() {
@@ -439,20 +379,6 @@ void setNeighbors(std::vector<Particle>& particles) {
             }
         }
     }
-}
-
-double weight(double dis, double re) {
-    double w = 0.0;
-
-    if (dis < re)
-        w = (re / dis) - 1.0;
-
-    return w;
-}
-
-double cal_dis2(int i, int j) {
-    Eigen::Vector3d x_ij = particles[j].position - particles[i].position;
-    return x_ij.squaredNorm();
 }
 
 std::tuple<int, int, int> cal_h_m_s(int second) {
