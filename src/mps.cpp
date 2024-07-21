@@ -349,6 +349,36 @@ void MPS::setMinimumPressure(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::calcPressureGradient(std::vector<Particle>& particles) {
+    const double& n0 = this->n0.gradient;
+    const double& re = settings.re.gradient;
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type != ParticleType::Fluid)
+            continue;
+
+        Eigen::Vector3d gradient = Eigen::Vector3d::Zero();
+
+        for (auto& neighbor : pi.neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double& dist = neighbor.distance;
+
+            if (pj.type == ParticleType::DummyWall)
+                continue;
+
+            if (dist < re) {
+                gradient += (pj.position - pi.position) *
+                            (pj.pressure - pi.minimumPressure) * weight(dist, re) /
+                            (dist * dist);
+            }
+        }
+
+        gradient *= settings.dim / n0;
+        pi.acceleration = -1.0 * gradient / pi.density;
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 

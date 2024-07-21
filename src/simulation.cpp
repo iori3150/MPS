@@ -27,7 +27,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void cal_P_grad();
 void move_particle_using_P_grad();
 void cal_courant();
 
@@ -268,7 +267,7 @@ void main_loop() {
         // inplicit
         setNeighbors(particles);
         mps.calcPressure(particles);
-        cal_P_grad();
+        mps.calcPressureGradient(particles);
         move_particle_using_P_grad();
 
         cal_courant();
@@ -374,35 +373,6 @@ void write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void cal_P_grad() {
-    double A = settings.dim / n0_for_grad;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        Eigen::Vector3d grad = Eigen::Vector3d::Zero();
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (pj.type == ParticleType::DummyWall)
-                continue;
-
-            if (dist < re_for_grad) {
-                grad += (pj.position - particles[i].position) *
-                        (pj.pressure - particles[i].minimumPressure) *
-                        weight(dist, re_for_grad) / (dist * dist);
-            }
-        }
-
-        grad *= A;
-        particles[i].acceleration = -1.0 * grad / particles[i].density;
     }
 }
 

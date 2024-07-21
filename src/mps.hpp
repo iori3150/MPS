@@ -41,4 +41,6 @@ public:
     void solvePoissonEquation(std::vector<Particle>& particles);
     void removeNegativePressure(std::vector<Particle>& particles);
     void setMinimumPressure(std::vector<Particle>& particles);
+
+    void calcPressureGradient(std::vector<Particle>& particles);
 };
