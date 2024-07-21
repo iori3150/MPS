@@ -38,7 +38,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void cal_viscosity();
 void move_particle();
 void collision();
 void cal_P();
@@ -308,8 +307,7 @@ void main_loop() {
         store_particle();
         setNeighbors(particles);
         mps.calGravity(particles);
-        cal_viscosity();
-        // mps.calViscosity(particles);
+        mps.calViscosity(particles);
         move_particle();
 
         setNeighbors(particles);
@@ -424,32 +422,6 @@ void write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void cal_viscosity() {
-    double A =
-        (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0_for_lap * lambda);
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (dist < re_for_lap) {
-                viscosity_term +=
-                    (pj.velocity - particles[i].velocity) * weight(dist, re_for_lap);
-            }
-        }
-
-        viscosity_term *= A;
-        particles[i].acceleration += viscosity_term;
     }
 }
 

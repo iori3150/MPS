@@ -47,32 +47,31 @@ void MPS::calGravity(std::vector<Particle>& particles) {
     }
 }
 
-// void MPS::calViscosity(std::vector<Particle>& particles) {
-//     double A =
-//         (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0["lap"] * lambda);
-//
-// #pragma omp parallel for
-//     for (auto& pi : particles) {
-//         if (pi.type != ParticleType::Fluid)
-//             continue;
-//
-//         Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
-//
-//         rep(j_neighbor, 0, num_neighbor[i]) {
-//             int j       = neighbor_id[i][j_neighbor];
-//             double dis2 = neighbor_dis2[i][j_neighbor];
-//
-//             if (dis2 < re2_for_lap) {
-//                 double dis = sqrt(dis2);
-//                 viscosity_term += (particles[j].velocity - particles[i].velocity) *
-//                                   weight(dis, re_for_lap);
-//             }
-//         }
-//
-//         viscosity_term *= A;
-//         pi.acceleration += viscosity_term;
-//     }
-// }
+void MPS::calViscosity(std::vector<Particle>& particles) {
+    double A =
+        (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0["laplacian"] * lambda);
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type != ParticleType::Fluid)
+            continue;
+
+        Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
+
+        for (auto& neighbor : pi.neighbors) {
+            const Particle& pj = particles[neighbor.id];
+            const double dist  = neighbor.distance;
+
+            if (dist < settings.re_forLaplacian) {
+                viscosity_term +=
+                    (pj.velocity - pi.velocity) * weight(dist, settings.re_forLaplacian);
+            }
+        }
+
+        viscosity_term *= A;
+        pi.acceleration += viscosity_term;
+    }
+}
 
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
