@@ -1,5 +1,6 @@
 #include "simulation.hpp"
 
+#include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
 
@@ -40,7 +41,6 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void cal_gravity();
 void cal_viscosity();
 void move_particle();
 void collision();
@@ -313,13 +313,18 @@ void main_loop() {
 
     write_data();
 
+    MPS mps(settings, particles);
+
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
         // explicit
         store_particle();
         set_neighbor();
-        cal_gravity();
+        // calGravity();
+        mps.calGravity(particles);
+        // particles = mps.calGravity();
+        // particles = mps.particles;
         cal_viscosity();
         move_particle();
 
@@ -435,18 +440,6 @@ void write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void cal_gravity() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Fluid) {
-            particles[i].acceleration = settings.gravity;
-
-        } else {
-            particles[i].acceleration << 0.0, 0.0, 0.0;
-        }
     }
 }
 
