@@ -11,10 +11,12 @@ public:
     double distance;
 
     Neighbor(int id, double distance) {
-        this->id        = id;
-        this->distance  = distance;
+        this->id       = id;
+        this->distance = distance;
     };
 };
+
+enum class BoundaryCondition { GhostOrDummy, Surface, Inner };
 
 class Particle {
 private:
@@ -23,16 +25,22 @@ public:
     ParticleType type;
     Eigen::Vector3d position, velocity;
     Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
-    double pressure;
+    double pressure, minimumPressure;
     double numberDensity = 0;
+    double density;
 
     std::vector<Neighbor> neighbors;
 
+    BoundaryCondition boundaryCondition;
+
     Particle(
-        int id,
-        ParticleType type,
-        Eigen::Vector3d position,
-        Eigen::Vector3d velocity,
-        double pressure
+        const int& id,
+        const ParticleType& type,
+        const Eigen::Vector3d& position,
+        const Eigen::Vector3d& velocity,
+        const double& pressure,
+        const double& density
     );
+
+    double inverseDensity() const;
 };

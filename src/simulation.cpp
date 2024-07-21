@@ -1,10 +1,10 @@
 #include "simulation.hpp"
 
+#include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
 
 #include <Eigen/Dense>
-#include <Eigen/IterativeLinearSolvers>
 #include <fstream>
 #include <iostream>
 #include <omp.h>
@@ -18,76 +18,12 @@ namespace fs = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// set_boundary_condition
-#define GHOST_OR_DUMMY -1
-#define SURFACE_PARTICLE 1
-#define INNER_PARTICLE 0
-
-// check_boundary_condition()
-#define DIRICHLET_BOUNDARY_IS_NOT_CONNECTED 0
-#define DIRICHLET_BOUNDARY_IS_CONNECTED 1
-#define DIRICHLET_BOUNDARY_IS_CHECKED 2
-
-// main()
-void read_data();
-void set_parameter();
-void cal_n0_and_lambda();
-void set_bucket();
-void main_loop();
-
-// main_loop()
-void write_data();
-void cal_gravity();
-void cal_viscosity();
-void move_particle();
-void collision();
-void cal_P();
-void cal_P_grad();
-void move_particle_using_P_grad();
-void cal_courant();
-
-// cal_P()
-void cal_n();
-void set_boundary_condition();
-void set_source_term();
-void set_matrix();
-void exceptional_processing_for_boundary_condition();
-void check_boundary_condition();
-void increase_diagonal_term();
-void solve_Poisson_eq();
-void remove_negative_P();
-void set_P_min();
-
-// bucket
-void store_particle();
-void setNeighbors(std::vector<Particle>& particles);
-
-// common
-double weight(double dis, double re);
-double cal_dis2(int i, int j);
-
-// time calculation
-std::tuple<int, int, int> cal_h_m_s(int second);
-
-// particles
-std::vector<Particle> particles;
-
 int np; // number of particles
-Eigen::VectorXd P_min;
 
-// effective radius
-double re_for_n, re2_for_n;
-double re_for_grad, re2_for_grad;
-double re_for_lap, re2_for_lap;
 double re_max, re2_max; // for bucket and neighor
 
 // other parameters
-double rho;
-double n0_for_n;
-double n0_for_grad;
-double n0_for_lap;
-double lambda; // used for laplacian calculation
-double courant;
+double courantNumber;
 
 // main()
 clock_t sim_start_time;
@@ -102,14 +38,6 @@ clock_t timestep_start_time;
 int nfile; // number of files
 FILE* log_file;
 
-// collision()
-double collision_dis, collision_dis2;
-
-// cal_P()
-Eigen::VectorXi boundary_condition, flag_for_checking_boundary_condition;
-Eigen::VectorXd source_term;
-Eigen::MatrixXd coef_matrix;
-
 // bucket
 double x_min, x_max, y_min, y_max, z_min, z_max;
 int num_bucket, num_bucket_x, num_bucket_y, num_bucket_xy, num_bucket_z;
@@ -121,7 +49,10 @@ Settings settings;
 void Simulation::run() {
     startSimulation();
 
-    read_data();
+    std::vector<Particle> particles;
+    read_data(particles);
+    mps = MPS(settings, particles);
+
     set_parameter();
     set_bucket();
 
@@ -151,7 +82,7 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
 
-void read_data() {
+void Simulation::read_data(std::vector<Particle>& particles) {
     std::ifstream file;
 
     file.open(settings.inputProfPath);
@@ -162,14 +93,6 @@ void read_data() {
 
     file >> Time;
     file >> np;
-
-    // set std::vector size
-    P_min.resize(np);
-
-    boundary_condition.resize(np);
-    source_term.resize(np);
-    flag_for_checking_boundary_condition.resize(np);
-    coef_matrix.resize(np, np);
 
     int id;
     rep(i, 0, np) {
@@ -187,7 +110,8 @@ void read_data() {
             static_cast<ParticleType>(type),
             Eigen::Vector3d(x, y, z),
             Eigen::Vector3d(u, v, w),
-            pressure
+            pressure,
+            settings.density
         ));
     }
 
@@ -210,18 +134,13 @@ void read_data() {
     file.close();
 }
 
-void set_parameter() {
-    rho = settings.density;
+void Simulation::set_parameter() {
 
     // effective radius;
-    re_for_n     = settings.re_forNumberDensity;
-    re2_for_n    = re_for_n * re_for_n;
-    re_for_grad  = settings.re_forGradient;
-    re2_for_grad = re_for_grad * re_for_grad;
-    re_for_lap   = settings.re_forLaplacian;
-    re2_for_lap  = re_for_lap * re_for_lap;
-    re_max       = std::max({re_for_n, re_for_grad, re_for_lap});
-    re2_max      = re_max * re_max;
+    re_max =
+        std::max({settings.re.numberDensity, settings.re.gradient, settings.re.laplacian}
+        );
+    re2_max = re_max * re_max;
 
     // main_loop()
     Time = 0.0;
@@ -231,56 +150,9 @@ void set_parameter() {
     char filename[256];
     sprintf(filename, "result/result.log");
     log_file = fopen(filename, "w");
-
-    // collision()
-    collision_dis  = settings.collisionDistance;
-    collision_dis2 = collision_dis * collision_dis;
-
-    cal_n0_and_lambda();
 }
 
-void cal_n0_and_lambda() {
-    n0_for_n    = 0.0;
-    n0_for_grad = 0.0;
-    n0_for_lap  = 0.0;
-    lambda      = 0.0;
-
-    int iZ_start, iZ_end;
-    if (settings.dim == 2) {
-        iZ_start = 0;
-        iZ_end   = 1;
-    } else {
-        iZ_start = -4;
-        iZ_end   = 5;
-    }
-
-    double xi, yi, zi;
-    double dis, dis2;
-    for (int iX = -4; iX < 5; iX++) {
-        for (int iY = -4; iY < 5; iY++) {
-            for (int iZ = iZ_start; iZ < iZ_end; iZ++) {
-                if (((iX == 0) && (iY == 0)) && (iZ == 0))
-                    continue;
-
-                xi   = settings.particleDistance * (double) (iX);
-                yi   = settings.particleDistance * (double) (iY);
-                zi   = settings.particleDistance * (double) (iZ);
-                dis2 = xi * xi + yi * yi + zi * zi;
-
-                dis = sqrt(dis2);
-
-                n0_for_n += weight(dis, re_for_n);
-                n0_for_grad += weight(dis, re_for_grad);
-                n0_for_lap += weight(dis, re_for_lap);
-
-                lambda += dis2 * weight(dis, re_for_lap);
-            }
-        }
-    }
-    lambda /= n0_for_lap;
-}
-
-void set_bucket() {
+void Simulation::set_bucket() {
     bucket_length = re_max * (1.0 + settings.cflCondition);
 
     num_bucket_x  = (int) ((x_max - x_min) / bucket_length) + 3;
@@ -294,7 +166,7 @@ void set_bucket() {
     bucket_next.resize(np);
 }
 
-void main_loop() {
+void Simulation::main_loop() {
     timestep = 0;
 
     write_data();
@@ -302,23 +174,21 @@ void main_loop() {
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
-        // explicit
         store_particle();
-        setNeighbors(particles);
-        cal_gravity();
-        cal_viscosity();
-        move_particle();
+        setNeighbors();
+        mps.calGravity();
+        mps.calViscosity();
+        mps.moveParticle();
 
-        setNeighbors(particles);
-        collision();
+        setNeighbors();
+        mps.collision();
 
-        // inplicit
-        setNeighbors(particles);
-        cal_P();
-        cal_P_grad();
-        move_particle_using_P_grad();
+        setNeighbors();
+        mps.calcPressure();
+        mps.calcPressureGradient();
+        mps.moveParticleWithPressureGradient();
 
-        cal_courant();
+        courantNumber = mps.calcCourantNumber();
 
         timestep++;
         Time += settings.dt;
@@ -326,7 +196,7 @@ void main_loop() {
     }
 }
 
-void write_data() {
+void Simulation::write_data() {
     clock_t now = clock();
     int hour, minute, second;
 
@@ -366,7 +236,7 @@ void write_data() {
         ave,
         last,
         nfile,
-        courant
+        courantNumber
     );
 
     // log file output
@@ -383,7 +253,7 @@ void write_data() {
         ave,
         last,
         nfile,
-        courant
+        courantNumber
     );
 
     // error file output
@@ -399,7 +269,7 @@ void write_data() {
         fprintf(fp, "%lf\n", Time);
         fprintf(fp, "%d\n", np);
         rep(i, 0, np) {
-            if (particles[i].type == ParticleType::Ghost)
+            if (mps.particles[i].type == ParticleType::Ghost)
                 continue;
 
             fprintf(
@@ -407,15 +277,15 @@ void write_data() {
                 "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf "
                 "% 08.3lf\n",
                 i,
-                particles[i].type,
-                particles[i].position.x(),
-                particles[i].position.y(),
-                particles[i].position.z(),
-                particles[i].velocity[0],
-                particles[i].velocity[1],
-                particles[i].velocity[2],
-                particles[i].pressure,
-                particles[i].numberDensity
+                mps.particles[i].type,
+                mps.particles[i].position.x(),
+                mps.particles[i].position.y(),
+                mps.particles[i].position.z(),
+                mps.particles[i].velocity[0],
+                mps.particles[i].velocity[1],
+                mps.particles[i].velocity[2],
+                mps.particles[i].pressure,
+                mps.particles[i].numberDensity
             );
         }
         fclose(fp);
@@ -424,381 +294,7 @@ void write_data() {
     }
 }
 
-void cal_gravity() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Fluid) {
-            particles[i].acceleration = settings.gravity;
-
-        } else {
-            particles[i].acceleration << 0.0, 0.0, 0.0;
-        }
-    }
-}
-
-void cal_viscosity() {
-    double A =
-        (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0_for_lap * lambda);
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        Eigen::Vector3d viscosity_term = Eigen::Vector3d::Zero();
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (dist < re_for_lap) {
-                viscosity_term +=
-                    (pj.velocity - particles[i].velocity) * weight(dist, re_for_lap);
-            }
-        }
-
-        viscosity_term *= A;
-        particles[i].acceleration += viscosity_term;
-    }
-}
-
-void move_particle() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Fluid) {
-            particles[i].velocity += particles[i].acceleration * settings.dt;
-            particles[i].position += particles[i].velocity * settings.dt;
-        }
-
-        particles[i].acceleration.setZero();
-    }
-}
-
-void collision() {
-    std::vector<Eigen::Vector3d> u_after(np);
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        u_after[i] = particles[i].velocity;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (dist < collision_dis) {
-                double forceDT = -(pj.velocity - particles[i].velocity)
-                                      .dot(pj.position - particles[i].position) /
-                                 dist; // impulse of collision between particles
-
-                if (forceDT > 0.0) {
-                    double mi = rho;
-                    double mj = rho;
-                    forceDT *=
-                        (1.0 + settings.coefficientOfRestitution) * mi * mj / (mi + mj);
-                    u_after[i] -=
-                        (forceDT / mi) * (pj.position - particles[i].position) / dist;
-
-#pragma omp critical
-                    {
-                        if (neighbor.id > i)
-                            cerr << "WARNING: collision occured between " << i << " and "
-                                 << neighbor.id << " particles." << endl;
-                    }
-                }
-            }
-        }
-    }
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        particles[i].position += (u_after[i] - particles[i].velocity) * settings.dt;
-        particles[i].velocity = u_after[i];
-    }
-}
-
-void cal_P() {
-    cal_n();
-    set_boundary_condition();
-    set_source_term();
-    set_matrix();
-    solve_Poisson_eq();
-    remove_negative_P();
-    set_P_min();
-}
-
-void cal_n() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
-            continue;
-
-        particles[i].numberDensity = 0.0;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (dist < re_for_n) {
-                particles[i].numberDensity += weight(dist, re_for_n);
-            }
-        }
-    }
-}
-
-void set_boundary_condition() {
-    double n0   = n0_for_n;
-    double beta = settings.thresholdForSurfaceDetection;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost ||
-            particles[i].type == ParticleType::DummyWall) {
-            boundary_condition[i] = GHOST_OR_DUMMY;
-
-        } else if (particles[i].numberDensity < beta * n0) {
-            boundary_condition[i] = SURFACE_PARTICLE;
-
-        } else {
-            boundary_condition[i] = INNER_PARTICLE;
-        }
-    }
-}
-
-void set_source_term() {
-    double n0    = n0_for_n;
-    double gamma = settings.relaxationCoefficientForPressure;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (boundary_condition[i] == INNER_PARTICLE) {
-            source_term[i] = gamma * (1.0 / (settings.dt * settings.dt)) *
-                             ((particles[i].numberDensity - n0) / n0);
-
-        } else {
-            source_term[i] = 0.0;
-        }
-    }
-}
-
-void set_matrix() {
-    coef_matrix.setZero();
-
-    double n0 = n0_for_lap;
-    double A  = 2.0 * settings.dim / (n0 * lambda);
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (boundary_condition[i] != INNER_PARTICLE)
-            continue;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (pj.type == ParticleType::DummyWall)
-                continue;
-
-            if (dist < re_for_lap) {
-                double coef_ij = A * weight(dist, re_for_lap) / rho;
-
-                coef_matrix(i, pj.id) = (-1.0 * coef_ij);
-                coef_matrix(i, i) += coef_ij;
-            }
-        }
-
-        coef_matrix(i, i) += (settings.compressibility) / (settings.dt * settings.dt);
-    }
-
-    exceptional_processing_for_boundary_condition();
-}
-
-void exceptional_processing_for_boundary_condition() {
-    // If tere is no Dirichlet boundary condition on the fluid,
-    // increase the diagonal terms of the matrix for an exception.
-    // This allows us to solve the matrix without Dirichlet boundary conditions.
-    check_boundary_condition();
-    increase_diagonal_term();
-}
-
-void check_boundary_condition() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (boundary_condition[i] == GHOST_OR_DUMMY) {
-            flag_for_checking_boundary_condition[i] = GHOST_OR_DUMMY;
-
-        } else if (boundary_condition[i] == SURFACE_PARTICLE) {
-            flag_for_checking_boundary_condition[i] = DIRICHLET_BOUNDARY_IS_CONNECTED;
-
-        } else {
-            flag_for_checking_boundary_condition[i] = DIRICHLET_BOUNDARY_IS_NOT_CONNECTED;
-        }
-    }
-
-    int count;
-    while (true) {
-        count = 0;
-
-        rep(i, 0, np) {
-            if (flag_for_checking_boundary_condition[i] !=
-                DIRICHLET_BOUNDARY_IS_CONNECTED)
-                continue;
-
-            for (auto& neighbor : particles[i].neighbors) {
-                const Particle& pj = particles[neighbor.id];
-                const double& dist = neighbor.distance;
-
-                if (flag_for_checking_boundary_condition[pj.id] !=
-                    DIRICHLET_BOUNDARY_IS_NOT_CONNECTED)
-                    continue;
-
-                if (dist < re_for_lap)
-                    flag_for_checking_boundary_condition[pj.id] =
-                        DIRICHLET_BOUNDARY_IS_CONNECTED;
-            }
-
-            flag_for_checking_boundary_condition[i] = DIRICHLET_BOUNDARY_IS_CHECKED;
-            count++;
-        }
-
-        if (count == 0)
-            break;
-    }
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (flag_for_checking_boundary_condition[i] ==
-            DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
-#pragma omp critical
-            {
-                cerr << "WARNING: There is no dirichlet boundary condition for particle "
-                     << i << endl;
-            }
-        }
-    }
-}
-
-void increase_diagonal_term() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (flag_for_checking_boundary_condition[i] ==
-            DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
-            coef_matrix(i, i) *= 2.0;
-        }
-    }
-}
-
-void solve_Poisson_eq() {
-    Eigen::SparseMatrix<double> A = coef_matrix.sparseView();
-    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
-    solver.compute(A);
-    Eigen::VectorXd pressures = solver.solve(source_term);
-    for (auto& pi : particles) {
-        pi.pressure = pressures[pi.id];
-    }
-}
-
-void remove_negative_P() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].pressure < 0.0)
-            particles[i].pressure = 0.0;
-    }
-}
-
-void set_P_min() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (boundary_condition[i] == GHOST_OR_DUMMY)
-            continue;
-
-        P_min[i] = particles[i].pressure;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (pj.type == ParticleType::DummyWall)
-                continue;
-
-            if (dist < re_for_grad) {
-                if (P_min[i] > pj.pressure)
-                    P_min[i] = pj.pressure;
-            }
-        }
-    }
-}
-
-void cal_P_grad() {
-    double A = settings.dim / n0_for_grad;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        Eigen::Vector3d grad = Eigen::Vector3d::Zero();
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (pj.type == ParticleType::DummyWall)
-                continue;
-
-            if (dist < re_for_grad) {
-                grad += (pj.position - particles[i].position) * (pj.pressure - P_min[i]) *
-                        weight(dist, re_for_grad) / (dist * dist);
-            }
-        }
-
-        grad *= A;
-        particles[i].acceleration = -1.0 * grad / rho;
-    }
-}
-
-void move_particle_using_P_grad() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Fluid) {
-            particles[i].velocity += particles[i].acceleration * settings.dt;
-            particles[i].position +=
-                particles[i].acceleration * settings.dt * settings.dt;
-        }
-
-        particles[i].acceleration.Zero();
-    }
-}
-
-void cal_courant() {
-    courant = 0.0;
-
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type != ParticleType::Fluid)
-            continue;
-
-        double courant_i =
-            (particles[i].velocity.norm() * settings.dt) / settings.particleDistance;
-        if (courant_i > courant)
-#pragma omp critical
-        {
-            courant = courant_i;
-        }
-    }
-
-    if (courant > settings.cflCondition) {
-        cerr << "ERROR: Courant number is larger than CFL condition. Courant = "
-             << courant << endl;
-        error_flag = ON;
-    }
-}
-
-void store_particle() {
+void Simulation::store_particle() {
 #pragma omp parallel for
     rep(i, 0, num_bucket) {
         bucket_first[i] = -1;
@@ -807,19 +303,19 @@ void store_particle() {
 
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
+        if (mps.particles[i].type == ParticleType::Ghost)
             continue;
         bucket_next[i] = -1;
     }
 
 #pragma omp parallel for
     rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
+        if (mps.particles[i].type == ParticleType::Ghost)
             continue;
 
-        int ix      = (int) ((particles[i].position.x() - x_min) / bucket_length) + 1;
-        int iy      = (int) ((particles[i].position.y() - y_min) / bucket_length) + 1;
-        int iz      = (int) ((particles[i].position.z() - z_min) / bucket_length) + 1;
+        int ix      = (int) ((mps.particles[i].position.x() - x_min) / bucket_length) + 1;
+        int iy      = (int) ((mps.particles[i].position.y() - y_min) / bucket_length) + 1;
+        int iz      = (int) ((mps.particles[i].position.z() - z_min) / bucket_length) + 1;
         int ibucket = iz * num_bucket_xy + iy * num_bucket_x + ix;
 
 #pragma omp critical
@@ -833,9 +329,9 @@ void store_particle() {
     }
 }
 
-void setNeighbors(std::vector<Particle>& particles) {
+void Simulation::setNeighbors() {
 #pragma omp parallel for
-    for (auto& pi : particles) {
+    for (auto& pi : mps.particles) {
         if (pi.type == ParticleType::Ghost)
             continue;
 
@@ -852,7 +348,7 @@ void setNeighbors(std::vector<Particle>& particles) {
                     int j       = bucket_first[jbucket];
 
                     while (j != -1) {
-                        Particle& pj = particles[j];
+                        Particle& pj = mps.particles[j];
 
                         double dist = (pj.position - pi.position).norm();
                         if (j != pi.id && dist < re_max) {
@@ -867,21 +363,7 @@ void setNeighbors(std::vector<Particle>& particles) {
     }
 }
 
-double weight(double dis, double re) {
-    double w = 0.0;
-
-    if (dis < re)
-        w = (re / dis) - 1.0;
-
-    return w;
-}
-
-double cal_dis2(int i, int j) {
-    Eigen::Vector3d x_ij = particles[j].position - particles[i].position;
-    return x_ij.squaredNorm();
-}
-
-std::tuple<int, int, int> cal_h_m_s(int second) {
+std::tuple<int, int, int> Simulation::cal_h_m_s(int second) {
     int hour = second / 3600;
     second %= 3600;
     int minute = second / 60;
