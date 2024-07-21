@@ -39,12 +39,12 @@ void move_particle_using_P_grad();
 void cal_courant();
 
 // cal_P()
-void set_source_term();
+void set_source_term(MPS& mps);
 void set_matrix();
 void exceptional_processing_for_boundary_condition();
 void check_boundary_condition();
 void increase_diagonal_term();
-void solve_Poisson_eq();
+void solve_Poisson_eq(MPS& mps);
 void remove_negative_P();
 void set_P_min();
 
@@ -93,7 +93,6 @@ FILE* log_file;
 
 // cal_P()
 Eigen::VectorXi flag_for_checking_boundary_condition;
-Eigen::VectorXd source_term;
 Eigen::MatrixXd coef_matrix;
 
 // bucket
@@ -152,7 +151,6 @@ void read_data() {
     // set std::vector size
     P_min.resize(np);
 
-    source_term.resize(np);
     flag_for_checking_boundary_condition.resize(np);
     coef_matrix.resize(np, np);
 
@@ -280,7 +278,7 @@ void main_loop() {
 
     write_data();
 
-    MPS mps(settings, particles);
+    MPS mps(settings, particles.size());
 
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
@@ -410,25 +408,25 @@ void write_data() {
 void cal_P(MPS& mps) {
     mps.calcNumberDensity(particles);
     mps.setBoundaryCondition(particles);
-    set_source_term();
+    set_source_term(mps);
     set_matrix();
-    solve_Poisson_eq();
+    solve_Poisson_eq(mps);
     remove_negative_P();
     set_P_min();
 }
 
-void set_source_term() {
+void set_source_term(MPS& mps) {
     double n0    = n0_for_n;
     double gamma = settings.relaxationCoefficientForPressure;
 
 #pragma omp parallel for
     rep(i, 0, np) {
         if (particles[i].boundaryCondition == BoundaryCondition::Inner) {
-            source_term[i] = gamma * (1.0 / (settings.dt * settings.dt)) *
-                             ((particles[i].numberDensity - n0) / n0);
+            mps.sourceTerm[i] = gamma * (1.0 / (settings.dt * settings.dt)) *
+                                ((particles[i].numberDensity - n0) / n0);
 
         } else {
-            source_term[i] = 0.0;
+            mps.sourceTerm[i] = 0.0;
         }
     }
 }
@@ -539,11 +537,11 @@ void increase_diagonal_term() {
     }
 }
 
-void solve_Poisson_eq() {
+void solve_Poisson_eq(MPS& mps) {
     Eigen::SparseMatrix<double> A = coef_matrix.sparseView();
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
     solver.compute(A);
-    Eigen::VectorXd pressures = solver.solve(source_term);
+    Eigen::VectorXd pressures = solver.solve(mps.sourceTerm);
     for (auto& pi : particles) {
         pi.pressure = pressures[pi.id];
     }

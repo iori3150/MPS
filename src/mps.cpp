@@ -2,9 +2,9 @@
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
 
-MPS::MPS(Settings& settings, std::vector<Particle>& particles) {
-    this->settings  = settings;
-    this->particles = particles;
+MPS::MPS(const Settings& settings, const int& numberOfParticles) {
+    this->settings = settings;
+    this->sourceTerm.resize(numberOfParticles);
 
     int iZ_start = -4;
     int iZ_end   = 5;

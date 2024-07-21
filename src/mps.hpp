@@ -15,12 +15,13 @@ private:
     double lambda = 0.0;
 
     Settings settings;
-    std::vector<Particle> particles;
 
     double weight(const double& dist, const double& re);
 
 public:
-    MPS(Settings& settings, std::vector<Particle>& particles);
+    Eigen::VectorXd sourceTerm;
+
+    MPS(const Settings& settings, const int& numberOfParticles);
 
     void calGravity(std::vector<Particle>& particles);
     void calViscosity(std::vector<Particle>& particles);
