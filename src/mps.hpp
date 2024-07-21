@@ -20,6 +20,7 @@ private:
 
 public:
     Eigen::VectorXd sourceTerm;
+    Eigen::MatrixXd coeffMatrix;
 
     MPS(const Settings& settings, const int& numberOfParticles);
 

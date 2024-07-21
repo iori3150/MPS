@@ -5,6 +5,7 @@
 MPS::MPS(const Settings& settings, const int& numberOfParticles) {
     this->settings = settings;
     this->sourceTerm.resize(numberOfParticles);
+    this->coeffMatrix.resize(numberOfParticles, numberOfParticles);
 
     int iZ_start = -4;
     int iZ_end   = 5;

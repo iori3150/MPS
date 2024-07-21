@@ -39,10 +39,10 @@ void move_particle_using_P_grad();
 void cal_courant();
 
 // cal_P()
-void set_matrix();
-void exceptional_processing_for_boundary_condition();
+void set_matrix(MPS& mps);
+void exceptional_processing_for_boundary_condition(MPS& mps);
 void check_boundary_condition();
-void increase_diagonal_term();
+void increase_diagonal_term(MPS& mps);
 void solve_Poisson_eq(MPS& mps);
 void remove_negative_P();
 void set_P_min();
@@ -92,7 +92,6 @@ FILE* log_file;
 
 // cal_P()
 Eigen::VectorXi flag_for_checking_boundary_condition;
-Eigen::MatrixXd coef_matrix;
 
 // bucket
 double x_min, x_max, y_min, y_max, z_min, z_max;
@@ -151,7 +150,6 @@ void read_data() {
     P_min.resize(np);
 
     flag_for_checking_boundary_condition.resize(np);
-    coef_matrix.resize(np, np);
 
     int id;
     rep(i, 0, np) {
@@ -408,14 +406,14 @@ void cal_P(MPS& mps) {
     mps.calcNumberDensity(particles);
     mps.setBoundaryCondition(particles);
     mps.setSourceTerm(particles);
-    set_matrix();
+    set_matrix(mps);
     solve_Poisson_eq(mps);
     remove_negative_P();
     set_P_min();
 }
 
-void set_matrix() {
-    coef_matrix.setZero();
+void set_matrix(MPS& mps) {
+    mps.coeffMatrix.setZero();
 
     double n0 = n0_for_lap;
     double A  = 2.0 * settings.dim / (n0 * lambda);
@@ -434,23 +432,23 @@ void set_matrix() {
             if (dist < re_for_lap) {
                 double coef_ij = A * weight(dist, re_for_lap) / particles[i].density;
 
-                coef_matrix(i, pj.id) = (-1.0 * coef_ij);
-                coef_matrix(i, i) += coef_ij;
+                mps.coeffMatrix(i, pj.id) = (-1.0 * coef_ij);
+                mps.coeffMatrix(i, i) += coef_ij;
             }
         }
 
-        coef_matrix(i, i) += (settings.compressibility) / (settings.dt * settings.dt);
+        mps.coeffMatrix(i, i) += (settings.compressibility) / (settings.dt * settings.dt);
     }
 
-    exceptional_processing_for_boundary_condition();
+    exceptional_processing_for_boundary_condition(mps);
 }
 
-void exceptional_processing_for_boundary_condition() {
+void exceptional_processing_for_boundary_condition(MPS& mps) {
     // If tere is no Dirichlet boundary condition on the fluid,
     // increase the diagonal terms of the matrix for an exception.
     // This allows us to solve the matrix without Dirichlet boundary conditions.
     check_boundary_condition();
-    increase_diagonal_term();
+    increase_diagonal_term(mps);
 }
 
 void check_boundary_condition() {
@@ -510,18 +508,18 @@ void check_boundary_condition() {
     }
 }
 
-void increase_diagonal_term() {
+void increase_diagonal_term(MPS& mps) {
 #pragma omp parallel for
     rep(i, 0, np) {
         if (flag_for_checking_boundary_condition[i] ==
             DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
-            coef_matrix(i, i) *= 2.0;
+            mps.coeffMatrix(i, i) *= 2.0;
         }
     }
 }
 
 void solve_Poisson_eq(MPS& mps) {
-    Eigen::SparseMatrix<double> A = coef_matrix.sparseView();
+    Eigen::SparseMatrix<double> A = mps.coeffMatrix.sparseView();
     Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
     solver.compute(A);
     Eigen::VectorXd pressures = solver.solve(mps.sourceTerm);
