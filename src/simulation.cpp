@@ -38,13 +38,12 @@ void main_loop();
 
 // main_loop()
 void write_data();
-void cal_P();
+void cal_P(MPS& mps);
 void cal_P_grad();
 void move_particle_using_P_grad();
 void cal_courant();
 
 // cal_P()
-void cal_n();
 void set_boundary_condition();
 void set_source_term();
 void set_matrix();
@@ -305,7 +304,7 @@ void main_loop() {
 
         // inplicit
         setNeighbors(particles);
-        cal_P();
+        cal_P(mps);
         cal_P_grad();
         move_particle_using_P_grad();
 
@@ -415,33 +414,14 @@ void write_data() {
     }
 }
 
-void cal_P() {
-    cal_n();
+void cal_P(MPS& mps) {
+    mps.calcNumberDensity(particles);
     set_boundary_condition();
     set_source_term();
     set_matrix();
     solve_Poisson_eq();
     remove_negative_P();
     set_P_min();
-}
-
-void cal_n() {
-#pragma omp parallel for
-    rep(i, 0, np) {
-        if (particles[i].type == ParticleType::Ghost)
-            continue;
-
-        particles[i].numberDensity = 0.0;
-
-        for (auto& neighbor : particles[i].neighbors) {
-            const Particle& pj = particles[neighbor.id];
-            const double& dist = neighbor.distance;
-
-            if (dist < re_for_n) {
-                particles[i].numberDensity += weight(dist, re_for_n);
-            }
-        }
-    }
 }
 
 void set_boundary_condition() {

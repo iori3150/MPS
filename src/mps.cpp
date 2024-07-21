@@ -124,6 +124,25 @@ void MPS::collision(std::vector<Particle>& particles) {
     }
 }
 
+void MPS::calcNumberDensity(std::vector<Particle>& particles) {
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Ghost)
+            continue;
+
+        pi.numberDensity = 0.0;
+
+        for (auto& neighbor : pi.neighbors) {
+            const double& dist = neighbor.distance;
+            const double& re   = settings.re.numberDensity;
+
+            if (dist < re) {
+                pi.numberDensity += weight(dist, re);
+            }
+        }
+    }
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 
