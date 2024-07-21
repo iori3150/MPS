@@ -213,11 +213,11 @@ void set_parameter() {
     rho = settings.density;
 
     // effective radius;
-    re_for_n     = settings.re_forNumberDensity;
+    re_for_n     = settings.re.numberDensity;
     re2_for_n    = re_for_n * re_for_n;
-    re_for_grad  = settings.re_forGradient;
+    re_for_grad  = settings.re.gradient;
     re2_for_grad = re_for_grad * re_for_grad;
-    re_for_lap   = settings.re_forLaplacian;
+    re_for_lap   = settings.re.laplacian;
     re2_for_lap  = re_for_lap * re_for_lap;
     re_max       = std::max({re_for_n, re_for_grad, re_for_lap});
     re2_max      = re_max * re_max;

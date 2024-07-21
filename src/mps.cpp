@@ -26,13 +26,13 @@ MPS::MPS(Settings& settings, std::vector<Particle>& particles) {
                 double dist  = r.norm();
                 double dist2 = dist * dist;
 
-                n0["gradient"] += weight(dist, settings.re_forGradient);
-                n0["laplacian"] += weight(dist, settings.re_forLaplacian);
-                lambda += dist2 * weight(dist, settings.re_forLaplacian);
+                n0.gradient += weight(dist, settings.re.gradient);
+                n0.laplacian += weight(dist, settings.re.laplacian);
+                lambda += dist2 * weight(dist, settings.re.laplacian);
             }
         }
     }
-    lambda /= n0["laplacian"];
+    lambda /= n0.laplacian;
 }
 
 void MPS::calGravity(std::vector<Particle>& particles) {
@@ -49,7 +49,7 @@ void MPS::calGravity(std::vector<Particle>& particles) {
 
 void MPS::calViscosity(std::vector<Particle>& particles) {
     double A =
-        (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0["laplacian"] * lambda);
+        (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0.laplacian * lambda);
 
 #pragma omp parallel for
     for (auto& pi : particles) {
@@ -62,9 +62,9 @@ void MPS::calViscosity(std::vector<Particle>& particles) {
             const Particle& pj = particles[neighbor.id];
             const double dist  = neighbor.distance;
 
-            if (dist < settings.re_forLaplacian) {
+            if (dist < settings.re.laplacian) {
                 viscosity_term +=
-                    (pj.velocity - pi.velocity) * weight(dist, settings.re_forLaplacian);
+                    (pj.velocity - pi.velocity) * weight(dist, settings.re.laplacian);
             }
         }
 

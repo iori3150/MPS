@@ -7,8 +7,11 @@
 
 class MPS {
 private:
-    std::map<std::string, double> n0 = {{"gradient", 0}, {"laplacian", 0}};
-    double lambda                    = 0;
+    struct {
+        double gradient  = 0;
+        double laplacian = 0;
+    } n0;
+    double lambda = 0;
 
     Settings settings;
     std::vector<Particle> particles;

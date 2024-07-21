@@ -19,9 +19,11 @@ struct Settings {
     double density            = 1000.0;
 
     // effective radius
-    double re_forNumberDensity = 2.1 * particleDistance;
-    double re_forGradient      = 2.1 * particleDistance;
-    double re_forLaplacian     = 3.1 * particleDistance;
+    struct {
+        double numberDensity;
+        double gradient;
+        double laplacian;
+    } re{2.1 * particleDistance, 2.1 * particleDistance, 3.1 * particleDistance};
 
     // gravity
     Eigen::Vector3d gravity = Eigen::Vector3d(0.0, -9.8, 0.0);
