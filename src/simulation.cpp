@@ -32,8 +32,6 @@ clock_t timestep_start_time;
 int nfile; // number of files
 FILE* log_file;
 
-Settings settings;
-
 void Simulation::run() {
     startSimulation();
 

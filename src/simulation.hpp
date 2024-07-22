@@ -2,6 +2,7 @@
 
 #include "mps.hpp"
 #include "particle.hpp"
+#include "settings.hpp"
 
 #include <vector>
 
@@ -11,6 +12,7 @@ public:
 
 private:
     MPS mps;
+    Settings settings;
 
     void startSimulation();
     void endSimulation();
