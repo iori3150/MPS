@@ -6,38 +6,18 @@
 #include "settings.hpp"
 
 #include <Eigen/Dense>
+#include <format>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <omp.h>
 
 using std::cerr;
 using std::cout;
 using std::endl;
-namespace fs = std::filesystem;
+namespace chrono = std::chrono;
+namespace fs     = std::filesystem;
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
-#define ON 1
-#define OFF 0
-
-int np; // number of particles
-
-// other parameters
-double courantNumber;
-
-// main()
-clock_t sim_start_time;
-int error_flag = OFF;
-
-// main_loop()
-int timestep;
-double Time;
-clock_t timestep_start_time;
-
-// write_data()
-int nfile; // number of files
-FILE* log_file;
-
-Settings settings;
 
 void Simulation::run() {
     startSimulation();
@@ -51,17 +31,17 @@ void Simulation::run() {
 
     timestep = 0;
 
-    write_data();
+    write_data(0.0, chrono::system_clock::now());
 
-    while (Time <= settings.finishTime) {
-        timestep_start_time = clock();
+    while (time <= settings.finishTime) {
+        chrono::system_clock::time_point timestepStartTime = chrono::system_clock::now();
 
         mps.stepForward();
-        courantNumber = mps.calcCourantNumber();
+        double courantNumber = mps.calcCourantNumber();
 
         timestep++;
-        Time += settings.dt;
-        write_data();
+        time += settings.dt;
+        write_data(courantNumber, timestepStartTime);
     }
 
     endSimulation();
@@ -69,21 +49,15 @@ void Simulation::run() {
 
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
-    sim_start_time = clock();
+    startTime = chrono::system_clock::now();
 }
 
 void Simulation::endSimulation() {
-    int hour, minute, second;
-    second                         = (double) (clock() - sim_start_time) / CLOCKS_PER_SEC;
-    std::tie(hour, minute, second) = cal_h_m_s(second);
-    printf("\nTotal Simulation Time = %dh %02dm %02ds\n", hour, minute, second);
+    std::string formattedTime =
+        std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime);
+    printf("\nTotal Simulation Time = %s\n", formattedTime.c_str());
 
-    if (error_flag == ON)
-        cout << "Error has occured. Please check error.log" << endl;
-    else
-        cout << "There was no error." << endl;
-
-    fclose(log_file);
+    fclose(logFile);
 
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
@@ -97,11 +71,12 @@ void Simulation::read_data(std::vector<Particle>& particles) {
         exit(1);
     }
 
-    file >> Time;
-    file >> np;
+    int numberOfParticles;
+    file >> time;
+    file >> numberOfParticles;
 
     int id;
-    rep(i, 0, np) {
+    rep(i, 0, numberOfParticles) {
         int type;
         double x, y, z, u, v, w;
         double pressure, n;
@@ -143,42 +118,50 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 }
 
 void Simulation::set_parameter() {
-    // main_loop()
-    Time = 0.0;
-
     // write_data()
-    nfile = 0;
+    resultFileNum = 0;
     char filename[256];
     sprintf(filename, "result/result.log");
-    log_file = fopen(filename, "w");
+    logFile = fopen(filename, "w");
 }
 
-void Simulation::write_data() {
-    clock_t now = clock();
-    int hour, minute, second;
-
+void Simulation::write_data(
+    const double& courantNumber, const chrono::system_clock::time_point& timestepStartTime
+) {
     // elapsed
     char elapsed[256];
-    second                         = (double) (now - sim_start_time) / CLOCKS_PER_SEC;
-    std::tie(hour, minute, second) = cal_h_m_s(second);
-    sprintf(elapsed, "elapsed=%dh %02dm %02ds", hour, minute, second);
+    sprintf(
+        elapsed,
+        "elapsed=%s",
+        std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime).c_str()
+    );
 
     // ave [s]/[timestep]
-    double ave = ((double) (now - sim_start_time) / CLOCKS_PER_SEC) / timestep;
-    if (timestep == 0)
-        ave = 0;
+    double ave = 0;
+    if (timestep != 0)
+        ave = chrono::duration_cast<chrono::seconds>(
+                  chrono::system_clock::now() - startTime
+              )
+                  .count() /
+              timestep;
 
     // remain
     char remain[256];
-    second = ((settings.finishTime - Time) / Time) * ave * timestep;
-    std::tie(hour, minute, second) = cal_h_m_s(second);
+    int remainingTimeInt = ((settings.finishTime - time) / time) * ave * timestep;
+    chrono::seconds remainingTime{remainingTimeInt};
     if (timestep == 0)
         sprintf(remain, "remain=---");
     else
-        sprintf(remain, "remain=%dh %02dm %02ds", hour, minute, second);
+        sprintf(
+            remain,
+            "remain=%s",
+            std::format("{:%Hh %Mm %Ss}", remainingTime).c_str()
+        );
 
     // last
-    double last = (double) (now - timestep_start_time) / CLOCKS_PER_SEC;
+    chrono::milliseconds last = chrono::duration_cast<chrono::milliseconds>(
+        chrono::system_clock::now() - timestepStartTime
+    );
 
     // terminal output
     printf(
@@ -186,46 +169,46 @@ void Simulation::write_data() {
         "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
         timestep,
         settings.dt,
-        Time,
+        time,
         settings.finishTime,
         elapsed,
         remain,
         ave,
         last,
-        nfile,
+        resultFileNum,
         courantNumber
     );
 
     // log file output
     fprintf(
-        log_file,
+        logFile,
         "%d: settings.dt=%gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   "
         "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
         timestep,
         settings.dt,
-        Time,
+        time,
         settings.finishTime,
         elapsed,
         remain,
         ave,
         last,
-        nfile,
+        resultFileNum,
         courantNumber
     );
 
     // error file output
-    fprintf(stderr, "%4d: t=%.3lfs\n", timestep, Time);
+    fprintf(stderr, "%4d: t=%.3lfs\n", timestep, time);
 
     // prof file output
-    if (Time >= settings.outputInterval * double(nfile)) {
+    if (time >= settings.outputInterval * double(resultFileNum)) {
         FILE* fp;
         char filename[256];
 
-        sprintf(filename, "result/prof/output_%04d.prof", nfile);
+        sprintf(filename, "result/prof/output_%04d.prof", resultFileNum);
         fp = fopen(filename, "w");
-        fprintf(fp, "%lf\n", Time);
-        fprintf(fp, "%d\n", np);
-        rep(i, 0, np) {
+        fprintf(fp, "%lf\n", time);
+        fprintf(fp, "%d\n", mps.particles.size());
+        rep(i, 0, mps.particles.size()) {
             if (mps.particles[i].type == ParticleType::Ghost)
                 continue;
 
@@ -247,15 +230,17 @@ void Simulation::write_data() {
         }
         fclose(fp);
 
-        nfile++;
+        resultFileNum++;
     }
 }
 
-std::tuple<int, int, int> Simulation::cal_h_m_s(int second) {
-    int hour = second / 3600;
-    second %= 3600;
-    int minute = second / 60;
-    second %= 60;
-
-    return std::forward_as_tuple(hour, minute, second);
+std::tuple<int, int, int> Simulation::getTimeDuration(
+    const chrono::system_clock::time_point& start,
+    const chrono::system_clock::time_point& end
+) {
+    chrono::seconds duration = chrono::duration_cast<chrono::seconds>(end - start);
+    chrono::hours hours      = chrono::duration_cast<chrono::hours>(duration);
+    chrono::minutes minutes  = chrono::duration_cast<chrono::minutes>(duration - hours);
+    chrono::seconds seconds  = duration - hours - minutes;
+    return std::forward_as_tuple(hours.count(), minutes.count(), seconds.count());
 }
