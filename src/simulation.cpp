@@ -21,9 +21,6 @@ namespace fs     = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// main()
-int error_flag = OFF;
-
 // main_loop()
 int timestep;
 double Time;
@@ -69,11 +66,6 @@ void Simulation::endSimulation() {
     std::string formattedTime =
         std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime);
     printf("\nTotal Simulation Time = %s\n", formattedTime.c_str());
-
-    if (error_flag == ON)
-        cout << "Error has occured. Please check error.log" << endl;
-    else
-        cout << "There was no error." << endl;
 
     fclose(log_file);
 
