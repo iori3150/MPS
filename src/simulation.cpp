@@ -21,10 +21,6 @@ namespace fs     = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// main_loop()
-int timestep;
-double Time;
-
 // write_data()
 int nfile; // number of files
 FILE* log_file;
@@ -43,14 +39,14 @@ void Simulation::run() {
 
     write_data(0.0, chrono::system_clock::now());
 
-    while (Time <= settings.finishTime) {
+    while (time <= settings.finishTime) {
         chrono::system_clock::time_point timestepStartTime = chrono::system_clock::now();
 
         mps.stepForward();
         double courantNumber = mps.calcCourantNumber();
 
         timestep++;
-        Time += settings.dt;
+        time += settings.dt;
         write_data(courantNumber, timestepStartTime);
     }
 
@@ -82,7 +78,7 @@ void Simulation::read_data(std::vector<Particle>& particles) {
     }
 
     int numberOfParticles;
-    file >> Time;
+    file >> time;
     file >> numberOfParticles;
 
     int id;
@@ -128,9 +124,6 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 }
 
 void Simulation::set_parameter() {
-    // main_loop()
-    Time = 0.0;
-
     // write_data()
     nfile = 0;
     char filename[256];
@@ -160,7 +153,7 @@ void Simulation::write_data(
 
     // remain
     char remain[256];
-    int remainingTimeInt = ((settings.finishTime - Time) / Time) * ave * timestep;
+    int remainingTimeInt = ((settings.finishTime - time) / time) * ave * timestep;
     chrono::seconds remainingTime{remainingTimeInt};
     if (timestep == 0)
         sprintf(remain, "remain=---");
@@ -182,7 +175,7 @@ void Simulation::write_data(
         "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
         timestep,
         settings.dt,
-        Time,
+        time,
         settings.finishTime,
         elapsed,
         remain,
@@ -199,7 +192,7 @@ void Simulation::write_data(
         "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
         timestep,
         settings.dt,
-        Time,
+        time,
         settings.finishTime,
         elapsed,
         remain,
@@ -210,16 +203,16 @@ void Simulation::write_data(
     );
 
     // error file output
-    fprintf(stderr, "%4d: t=%.3lfs\n", timestep, Time);
+    fprintf(stderr, "%4d: t=%.3lfs\n", timestep, time);
 
     // prof file output
-    if (Time >= settings.outputInterval * double(nfile)) {
+    if (time >= settings.outputInterval * double(nfile)) {
         FILE* fp;
         char filename[256];
 
         sprintf(filename, "result/prof/output_%04d.prof", nfile);
         fp = fopen(filename, "w");
-        fprintf(fp, "%lf\n", Time);
+        fprintf(fp, "%lf\n", time);
         fprintf(fp, "%d\n", mps.particles.size());
         rep(i, 0, mps.particles.size()) {
             if (mps.particles[i].type == ParticleType::Ghost)

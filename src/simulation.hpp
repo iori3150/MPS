@@ -16,6 +16,9 @@ private:
     Settings settings;
     std::chrono::system_clock::time_point startTime;
 
+    int timestep = 0;
+    double time  = 0.0;
+
     void startSimulation();
     void endSimulation();
 
