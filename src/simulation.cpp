@@ -21,8 +21,6 @@ namespace fs = std::filesystem;
 
 int np; // number of particles
 
-double re_max, re2_max; // for bucket and neighor
-
 // other parameters
 double courantNumber;
 
@@ -50,7 +48,7 @@ void Simulation::run() {
     mps = MPS(settings, particles);
 
     set_parameter();
-    bucket = Bucket(re_max, settings.domain, particles.size());
+    bucket = Bucket(settings.re.max, settings.domain, particles.size());
 
     main_loop();
 
@@ -133,13 +131,6 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 }
 
 void Simulation::set_parameter() {
-
-    // effective radius;
-    re_max =
-        std::max({settings.re.numberDensity, settings.re.gradient, settings.re.laplacian}
-        );
-    re2_max = re_max * re_max;
-
     // main_loop()
     Time = 0.0;
 
@@ -301,7 +292,7 @@ void Simulation::setNeighbors() {
                         Particle& pj = mps.particles[j];
 
                         double dist = (pj.position - pi.position).norm();
-                        if (j != pi.id && dist < re_max) {
+                        if (j != pi.id && dist < settings.re.max) {
                             pi.neighbors.emplace_back(j, dist);
                         }
 
