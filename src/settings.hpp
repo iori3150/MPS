@@ -51,7 +51,13 @@ struct Settings {
         double numberDensity;
         double gradient;
         double laplacian;
-    } re{2.1 * particleDistance, 2.1 * particleDistance, 3.1 * particleDistance};
+        double max;
+    } re{
+        2.1 * particleDistance,
+        2.1 * particleDistance,
+        3.1 * particleDistance,
+        3.1 * particleDistance
+    };
 
     // gravity
     Eigen::Vector3d gravity = Eigen::Vector3d(0.0, -9.8, 0.0);
