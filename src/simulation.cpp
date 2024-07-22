@@ -1,6 +1,7 @@
 #include "simulation.hpp"
 
 #include "bucket.hpp"
+#include "csv.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
@@ -10,6 +11,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <string>
 
 using std::cerr;
 using std::cout;
@@ -51,11 +53,25 @@ void Simulation::run() {
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
 
-    logFile.open("result/result.log");
+    logFile.open("result/result.csv");
     if (!logFile.is_open()) {
         cerr << "ERROR: Could not open the log file: " << resultFileNum << std::endl;
         exit(-1);
     }
+    auto logFileWriter = csv::make_csv_writer(logFile);
+    logFileWriter << std::vector<std::string>{
+        "Timestep",
+        "Dt (s)",
+        "Current Time (s)",
+        "Finish Time (s)",
+        "Elapsed Time (h:m:s)",
+        "Elapsed Time (s)",
+        "Remaining Time (h:m:s)",
+        "Average Time per timestep (s)",
+        "Time for this timestep (s)",
+        "Number of Output Files",
+        "Courant Number"
+    };
 }
 
 void Simulation::endSimulation() {
@@ -163,23 +179,20 @@ void Simulation::write_data(
             )
          << endl;
 
-    logFile << std::format(
-                   "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
-                   "remain={:%Hh %Mm %Ss}   "
-                   "ave={:.3f}s/step   "
-                   "last={:%S}s/step   out={}files   Courant={:.2f}",
-                   timestep,
-                   settings.dt,
-                   time,
-                   settings.finishTime,
-                   elapsed,
-                   remain,
-                   ave,
-                   last,
-                   resultFileNum,
-                   courantNumber
-               )
-            << endl;
+    auto logFileWriter = csv::make_csv_writer(logFile);
+    logFileWriter << std::make_tuple(
+        timestep,
+        settings.dt,
+        std::format("{:.3f}", time),
+        settings.finishTime,
+        std::format("{:%H:%M:%S}", elapsed),
+        elapsed.count(),
+        std::format("{:%H:%M:%S}", remain),
+        std::format("{:.3f}", ave),
+        std::format("{:%S}", last),
+        resultFileNum,
+        std::format("{:.2f}", courantNumber)
+    );
 
     if (time >= settings.outputInterval * double(resultFileNum)) {
         std::string filename =
