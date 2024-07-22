@@ -45,13 +45,12 @@ void Simulation::run() {
     startSimulation();
 
     std::vector<Particle> particles;
-    Domain domain;
 
-    read_data(particles, domain);
+    read_data(particles);
     mps = MPS(settings, particles);
 
     set_parameter();
-    bucket = Bucket(re_max, domain, particles.size());
+    bucket = Bucket(re_max, settings.domain, particles.size());
 
     main_loop();
 
@@ -79,7 +78,7 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
 
-void Simulation::read_data(std::vector<Particle>& particles, Domain& domain) {
+void Simulation::read_data(std::vector<Particle>& particles) {
     std::ifstream file;
 
     file.open(settings.inputProfPath);
@@ -128,7 +127,7 @@ void Simulation::read_data(std::vector<Particle>& particles, Domain& domain) {
     file >> dummy_string >> yMax;
     file >> dummy_string >> zMin;
     file >> dummy_string >> zMax;
-    domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
+    settings.domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
 
     file.close();
 }
