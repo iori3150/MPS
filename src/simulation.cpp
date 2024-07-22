@@ -27,8 +27,6 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    set_parameter();
-
     timestep = 0;
 
     write_data(0.0, chrono::system_clock::now());
@@ -49,15 +47,27 @@ void Simulation::run() {
 
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
+
     startTime = chrono::system_clock::now();
+
+    logFile.open("result/result.log");
+    if (!logFile.is_open()) {
+        cerr << "ERROR: Could not open the log file: " << resultFileNum << std::endl;
+        exit(-1);
+    }
 }
 
 void Simulation::endSimulation() {
-    std::string formattedTime =
-        std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime);
-    printf("\nTotal Simulation Time = %s\n", formattedTime.c_str());
+    cout << endl
+         << std::format(
+                "Total Simulation Time = {:%Hh %Mm %Ss}",
+                chrono::duration_cast<chrono::seconds>(
+                    chrono::system_clock::now() - startTime
+                )
+            )
+         << endl;
 
-    fclose(logFile);
+    logFile.close();
 
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
@@ -117,14 +127,6 @@ void Simulation::read_data(std::vector<Particle>& particles) {
     file.close();
 }
 
-void Simulation::set_parameter() {
-    // write_data()
-    resultFileNum = 0;
-    char filename[256];
-    sprintf(filename, "result/result.log");
-    logFile = fopen(filename, "w");
-}
-
 void Simulation::write_data(
     const double& courantNumber, const chrono::system_clock::time_point& timestepStartTime
 ) {
@@ -179,22 +181,21 @@ void Simulation::write_data(
         courantNumber
     );
 
-    // log file output
-    fprintf(
-        logFile,
-        "%d: settings.dt=%gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   "
-        "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
-        timestep,
-        settings.dt,
-        time,
-        settings.finishTime,
-        elapsed,
-        remain,
-        ave,
-        last,
-        resultFileNum,
-        courantNumber
-    );
+    logFile << std::format(
+                   "{}: dt={}s   t={:.3f}s   fin={:.1f}s   {}   {}   ave={:.3f}s/step "
+                   "last={:%S}s/step   out={}files   Courant={:.2f}",
+                   timestep,
+                   settings.dt,
+                   time,
+                   settings.finishTime,
+                   elapsed,
+                   remain,
+                   ave,
+                   last,
+                   resultFileNum,
+                   courantNumber
+               )
+            << endl;
 
     // error file output
     fprintf(stderr, "%4d: t=%.3lfs\n", timestep, time);
