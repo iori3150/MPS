@@ -48,7 +48,6 @@ void Simulation::run() {
     mps = MPS(settings, particles);
 
     set_parameter();
-    bucket = Bucket(settings.re.max, settings.domain, particles.size());
 
     main_loop();
 
@@ -149,15 +148,15 @@ void Simulation::main_loop() {
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
-        setNeighbors();
+        mps.setNeighbors();
         mps.calGravity();
         mps.calViscosity();
         mps.moveParticle();
 
-        setNeighbors();
+        mps.setNeighbors();
         mps.collision();
 
-        setNeighbors();
+        mps.setNeighbors();
         mps.calcPressure();
         mps.calcPressureGradient();
         mps.moveParticleWithPressureGradient();
@@ -265,42 +264,6 @@ void Simulation::write_data() {
         fclose(fp);
 
         nfile++;
-    }
-}
-
-void Simulation::setNeighbors() {
-    bucket.storeParticles(mps.particles);
-
-#pragma omp parallel for
-    for (auto& pi : mps.particles) {
-        if (pi.type == ParticleType::Ghost)
-            continue;
-
-        pi.neighbors.clear();
-
-        int ix = int((pi.position.x() - bucket.domain.x.min) / bucket.length) + 1;
-        int iy = int((pi.position.y() - bucket.domain.y.min) / bucket.length) + 1;
-        int iz = int((pi.position.z() - bucket.domain.z.min) / bucket.length) + 1;
-
-        for (int jx = ix - 1; jx <= ix + 1; jx++) {
-            for (int jy = iy - 1; jy <= iy + 1; jy++) {
-                for (int jz = iz - 1; jz <= iz + 1; jz++) {
-                    int jBucket = jx + jy * bucket.numX + jz * bucket.numX * bucket.numY;
-                    int j       = bucket.first[jBucket];
-
-                    while (j != -1) {
-                        Particle& pj = mps.particles[j];
-
-                        double dist = (pj.position - pi.position).norm();
-                        if (j != pi.id && dist < settings.re.max) {
-                            pi.neighbors.emplace_back(j, dist);
-                        }
-
-                        j = bucket.next[j];
-                    }
-                }
-            }
-        }
     }
 }
 
