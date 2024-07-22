@@ -14,8 +14,10 @@
 using std::cerr;
 using std::cout;
 using std::endl;
-namespace chrono = std::chrono;
-namespace fs     = std::filesystem;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+using std::chrono::system_clock;
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
 
@@ -29,11 +31,11 @@ void Simulation::run() {
 
     timestep = 0;
 
-    write_data(0.0, chrono::system_clock::now());
+    write_data(0.0, system_clock::now());
 
-    startTime = chrono::system_clock::now();
+    startTime = system_clock::now();
     while (time <= settings.finishTime) {
-        chrono::system_clock::time_point timestepStartTime = chrono::system_clock::now();
+        system_clock::time_point timestepStartTime = system_clock::now();
 
         mps.stepForward();
         double courantNumber = mps.calcCourantNumber();
@@ -60,9 +62,7 @@ void Simulation::endSimulation() {
     cout << endl
          << std::format(
                 "Total Simulation Time = {:%Hh %Mm %Ss}",
-                chrono::duration_cast<chrono::seconds>(
-                    chrono::system_clock::now() - startTime
-                )
+                duration_cast<seconds>(system_clock::now() - startTime)
             )
          << endl;
 
@@ -127,29 +127,24 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 }
 
 void Simulation::write_data(
-    const double& courantNumber, const chrono::system_clock::time_point& timestepStartTime
+    const double& courantNumber, const system_clock::time_point& timestepStartTime
 ) {
     // elapsed
-    chrono::seconds elapsed =
-        chrono::duration_cast<chrono::seconds>(chrono::system_clock::now() - startTime);
+    seconds elapsed = duration_cast<seconds>(system_clock::now() - startTime);
 
     // ave [s]/[timestep]
     double ave = 0;
     if (timestep != 0) {
-        ave = chrono::duration_cast<chrono::milliseconds>(
-                  chrono::system_clock::now() - startTime
-              )
-                  .count() /
+        ave = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
               (double) (1000 * timestep);
     }
 
     // remain
-    chrono::seconds remain{int(((settings.finishTime - time) / time) * ave * timestep)};
+    seconds remain{int(((settings.finishTime - time) / time) * ave * timestep)};
 
     // last
-    chrono::milliseconds last = chrono::duration_cast<chrono::milliseconds>(
-        chrono::system_clock::now() - timestepStartTime
-    );
+    milliseconds last =
+        duration_cast<milliseconds>(system_clock::now() - timestepStartTime);
 
     cout << std::format(
                 "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
