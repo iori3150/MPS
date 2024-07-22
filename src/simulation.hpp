@@ -20,7 +20,7 @@ private:
     void set_parameter();
 
     // main_loop()
-    void write_data();
+    void write_data(const double& courantNumber);
 
     // time calculation
     std::tuple<int, int, int> cal_h_m_s(int second);

@@ -19,9 +19,6 @@ namespace fs = std::filesystem;
 #define ON 1
 #define OFF 0
 
-// other parameters
-double courantNumber;
-
 // main()
 clock_t sim_start_time;
 int error_flag = OFF;
@@ -49,17 +46,17 @@ void Simulation::run() {
 
     timestep = 0;
 
-    write_data();
+    write_data(0.0);
 
     while (Time <= settings.finishTime) {
         timestep_start_time = clock();
 
         mps.stepForward();
-        courantNumber = mps.calcCourantNumber();
+        double courantNumber = mps.calcCourantNumber();
 
         timestep++;
         Time += settings.dt;
-        write_data();
+        write_data(courantNumber);
     }
 
     endSimulation();
@@ -152,7 +149,7 @@ void Simulation::set_parameter() {
     log_file = fopen(filename, "w");
 }
 
-void Simulation::write_data() {
+void Simulation::write_data(const double& courantNumber) {
     clock_t now = clock();
     int hour, minute, second;
 
