@@ -187,9 +187,6 @@ void Simulation::write_data(
                )
             << endl;
 
-    // error file output
-    fprintf(stderr, "%4d: t=%.3lfs\n", timestep, time);
-
     // prof file output
     if (time >= settings.outputInterval * double(resultFileNum)) {
         FILE* fp;
