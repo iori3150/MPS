@@ -457,3 +457,18 @@ void MPS::setNeighbors() {
         }
     }
 }
+
+void MPS::stepForward() {
+    setNeighbors();
+    calGravity();
+    calViscosity();
+    moveParticle();
+
+    setNeighbors();
+    collision();
+
+    setNeighbors();
+    calcPressure();
+    calcPressureGradient();
+    moveParticleWithPressureGradient();
+}

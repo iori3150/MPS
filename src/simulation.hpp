@@ -18,7 +18,6 @@ private:
     // main()
     void read_data(std::vector<Particle>& particles);
     void set_parameter();
-    void main_loop();
 
     // main_loop()
     void write_data();
