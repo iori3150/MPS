@@ -49,7 +49,20 @@ void Simulation::run() {
 
     set_parameter();
 
-    main_loop();
+    timestep = 0;
+
+    write_data();
+
+    while (Time <= settings.finishTime) {
+        timestep_start_time = clock();
+
+        mps.stepForward();
+        courantNumber = mps.calcCourantNumber();
+
+        timestep++;
+        Time += settings.dt;
+        write_data();
+    }
 
     endSimulation();
 }
@@ -138,35 +151,6 @@ void Simulation::set_parameter() {
     char filename[256];
     sprintf(filename, "result/result.log");
     log_file = fopen(filename, "w");
-}
-
-void Simulation::main_loop() {
-    timestep = 0;
-
-    write_data();
-
-    while (Time <= settings.finishTime) {
-        timestep_start_time = clock();
-
-        mps.setNeighbors();
-        mps.calGravity();
-        mps.calViscosity();
-        mps.moveParticle();
-
-        mps.setNeighbors();
-        mps.collision();
-
-        mps.setNeighbors();
-        mps.calcPressure();
-        mps.calcPressureGradient();
-        mps.moveParticleWithPressureGradient();
-
-        courantNumber = mps.calcCourantNumber();
-
-        timestep++;
-        Time += settings.dt;
-        write_data();
-    }
 }
 
 void Simulation::write_data() {

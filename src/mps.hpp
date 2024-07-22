@@ -22,14 +22,6 @@ private:
     Eigen::MatrixXd coeffMatrix;
     std::vector<double> flagForCheckingBoundaryCondition;
 
-    double weight(const double& dist, const double& re);
-
-public:
-    std::vector<Particle> particles;
-
-    MPS() = default;
-    MPS(const Settings& settings, std::vector<Particle>& particles);
-
     void calGravity();
     void calViscosity();
     void moveParticle();
@@ -50,7 +42,17 @@ public:
     void calcPressureGradient();
     void moveParticleWithPressureGradient();
 
-    double calcCourantNumber();
+    double weight(const double& dist, const double& re);
 
     void setNeighbors();
+
+public:
+    std::vector<Particle> particles;
+
+    MPS() = default;
+    MPS(const Settings& settings, std::vector<Particle>& particles);
+
+    void stepForward();
+
+    double calcCourantNumber();
 };
