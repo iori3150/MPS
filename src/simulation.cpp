@@ -67,8 +67,8 @@ void Simulation::startSimulation() {
         "Elapsed Time (h:m:s)",
         "Elapsed Time (s)",
         "Remaining Time (h:m:s)",
-        "Average Time per timestep (s)",
-        "Time for this timestep (s)",
+        "Average Time per Timestep (s)",
+        "Time for This Timestep (s)",
         "Number of Output Files",
         "Courant Number"
     };
@@ -145,37 +145,40 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 void Simulation::write_data(
     const double& courantNumber, const system_clock::time_point& timestepStartTime
 ) {
-    // elapsed
     seconds elapsed = duration_cast<seconds>(system_clock::now() - startTime);
 
-    // ave [s]/[timestep]
-    double ave = 0;
+    double average = 0;
     if (timestep != 0) {
-        ave = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
-              (double) (1000 * timestep);
+        average = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
+                  (double) (1000 * timestep);
     }
 
-    // remain
-    seconds remain{int(((settings.finishTime - time) / time) * ave * timestep)};
+    seconds remain{int(((settings.finishTime - time) / time) * average * timestep)};
 
     // last
     milliseconds last =
         duration_cast<milliseconds>(system_clock::now() - timestepStartTime);
 
+    std::string formattedTime          = std::format("{:.3f}", time);
+    std::string formattedElapsed       = std::format("{:%Hh %Mm %Ss}", elapsed);
+    std::string formattedAverage       = std::format("{:.3f}", average);
+    std::string formattedRemain        = std::format("{:%Hh %Mm %Ss}", remain);
+    std::string formattedLast          = std::format("{:%S}", last);
+    std::string formattedCourantNumber = std::format("{:.2f}", courantNumber);
+
     cout << std::format(
-                "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
-                "remain={:%Hh %Mm %Ss}   "
-                "ave={:.3f}s/step   last={:%S.3f}s/step   out={}files   Courant={:.2f}",
+                "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
+                "ave={}s/step   last={}s/step   out={}files   Courant={}",
                 timestep,
                 settings.dt,
-                time,
+                formattedTime,
                 settings.finishTime,
-                elapsed,
-                remain,
-                ave,
-                last,
+                formattedElapsed,
+                formattedRemain,
+                formattedAverage,
+                formattedLast,
                 resultFileNum,
-                courantNumber
+                formattedCourantNumber
             )
          << endl;
 
@@ -183,15 +186,15 @@ void Simulation::write_data(
     logFileWriter << std::make_tuple(
         timestep,
         settings.dt,
-        std::format("{:.3f}", time),
+        formattedTime,
         settings.finishTime,
-        std::format("{:%H:%M:%S}", elapsed),
+        formattedElapsed,
         elapsed.count(),
-        std::format("{:%H:%M:%S}", remain),
-        std::format("{:.3f}", ave),
-        std::format("{:%S}", last),
+        formattedRemain,
+        formattedAverage,
+        formattedLast,
         resultFileNum,
-        std::format("{:.2f}", courantNumber)
+        formattedCourantNumber
     );
 
     if (time >= settings.outputInterval * double(resultFileNum)) {
