@@ -18,7 +18,7 @@ private:
     void endSimulation();
 
     // main()
-    void read_data(std::vector<Particle>& particles, Domain& domain);
+    void read_data(std::vector<Particle>& particles);
     void set_parameter();
     void main_loop();
 

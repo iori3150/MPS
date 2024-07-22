@@ -3,6 +3,34 @@
 #include <Eigen/Core>
 #include <fstream>
 
+class Domain {
+private:
+public:
+    struct {
+        double min, max, length;
+    } x, y, z;
+
+    Domain() = default;
+    Domain(
+        const double& xMin,
+        const double& xMax,
+        const double& yMin,
+        const double& yMax,
+        const double& zMin,
+        const double& zMax
+    ) {
+        this->x.min    = xMin;
+        this->x.max    = xMax;
+        this->x.length = xMax - xMin;
+        this->y.min    = yMin;
+        this->y.max    = yMax;
+        this->y.length = yMax - yMin;
+        this->z.min    = zMin;
+        this->z.max    = zMax;
+        this->z.length = zMax - zMin;
+    }
+};
+
 struct Settings {
     // calculation conditions
     double dim                = 2;
@@ -40,4 +68,6 @@ struct Settings {
 
     // matrix
     double compressibility = 0.45e-9;
+
+    Domain domain;
 };

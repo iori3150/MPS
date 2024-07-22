@@ -7,25 +7,6 @@
 using std::cerr;
 using std::endl;
 
-Domain::Domain(
-    const double& xMin,
-    const double& xMax,
-    const double& yMin,
-    const double& yMax,
-    const double& zMin,
-    const double& zMax
-) {
-    this->x.min    = xMin;
-    this->x.max    = xMax;
-    this->x.length = xMax - xMin;
-    this->y.min    = yMin;
-    this->y.max    = yMax;
-    this->y.length = yMax - yMin;
-    this->z.min    = zMin;
-    this->z.max    = zMax;
-    this->z.length = zMax - zMin;
-}
-
 Bucket::Bucket(const double& reMax, const Domain& domain, const int& particleSize) {
     this->length = reMax;
     this->domain = domain;
