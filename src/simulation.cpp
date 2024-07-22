@@ -151,7 +151,6 @@ void Simulation::write_data(
         chrono::system_clock::now() - timestepStartTime
     );
 
-    // terminal output
     cout << std::format(
                 "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
                 "remain={:%Hh %Mm %Ss}   "
@@ -187,36 +186,43 @@ void Simulation::write_data(
                )
             << endl;
 
-    // prof file output
     if (time >= settings.outputInterval * double(resultFileNum)) {
-        FILE* fp;
-        char filename[256];
+        std::string filename =
+            std::format("result/prof/output_{:04d}.prof", resultFileNum);
 
-        sprintf(filename, "result/prof/output_%04d.prof", resultFileNum);
-        fp = fopen(filename, "w");
-        fprintf(fp, "%lf\n", time);
-        fprintf(fp, "%d\n", mps.particles.size());
-        rep(i, 0, mps.particles.size()) {
-            if (mps.particles[i].type == ParticleType::Ghost)
-                continue;
-
-            fprintf(
-                fp,
-                "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf "
-                "% 08.3lf\n",
-                i,
-                mps.particles[i].type,
-                mps.particles[i].position.x(),
-                mps.particles[i].position.y(),
-                mps.particles[i].position.z(),
-                mps.particles[i].velocity[0],
-                mps.particles[i].velocity[1],
-                mps.particles[i].velocity[2],
-                mps.particles[i].pressure,
-                mps.particles[i].numberDensity
+        std::ofstream outFile(filename);
+        if (!outFile.is_open()) {
+            throw std::runtime_error(
+                std::format("Could not open result file: {}", filename)
             );
         }
-        fclose(fp);
+
+        outFile << time << endl;
+        outFile << mps.particles.size() << endl;
+        for (auto& pi : mps.particles) {
+            if (pi.type == ParticleType::Ghost) {
+                continue;
+            }
+
+            outFile << std::format(
+                           "{:4d} {:2d} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} "
+                           "{:9.3f} "
+                           "{:8.3f}",
+                           pi.id,
+                           static_cast<int>(pi.type),
+                           pi.position.x(),
+                           pi.position.y(),
+                           pi.position.z(),
+                           pi.velocity.x(),
+                           pi.velocity.y(),
+                           pi.velocity.z(),
+                           pi.pressure,
+                           pi.numberDensity
+                       )
+                    << endl;
+        }
+
+        outFile.close();
 
         resultFileNum++;
     }
