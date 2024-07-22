@@ -1,5 +1,6 @@
 #pragma once
 
+#include "bucket.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
 
@@ -15,6 +16,7 @@ private:
     double lambda = 0.0;
 
     Settings settings;
+    Bucket bucket;
 
     Eigen::VectorXd sourceTerm;
     Eigen::MatrixXd coeffMatrix;
@@ -49,4 +51,6 @@ public:
     void moveParticleWithPressureGradient();
 
     double calcCourantNumber();
+
+    void setNeighbors();
 };

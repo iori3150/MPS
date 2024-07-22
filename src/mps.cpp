@@ -18,6 +18,7 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     this->sourceTerm.resize(particles.size());
     this->coeffMatrix.resize(particles.size(), particles.size());
     this->flagForCheckingBoundaryCondition.resize(particles.size());
+    this->bucket = Bucket(settings.re.max, settings.domain, particles.size());
 
     int iZ_start = -4;
     int iZ_end   = 5;
@@ -419,4 +420,40 @@ double MPS::weight(const double& dist, const double& re) {
         w = (re / dist) - 1.0;
 
     return w;
+}
+
+void MPS::setNeighbors() {
+    bucket.storeParticles(particles);
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Ghost)
+            continue;
+
+        pi.neighbors.clear();
+
+        int ix = int((pi.position.x() - bucket.domain.x.min) / bucket.length) + 1;
+        int iy = int((pi.position.y() - bucket.domain.y.min) / bucket.length) + 1;
+        int iz = int((pi.position.z() - bucket.domain.z.min) / bucket.length) + 1;
+
+        for (int jx = ix - 1; jx <= ix + 1; jx++) {
+            for (int jy = iy - 1; jy <= iy + 1; jy++) {
+                for (int jz = iz - 1; jz <= iz + 1; jz++) {
+                    int jBucket = jx + jy * bucket.numX + jz * bucket.numX * bucket.numY;
+                    int j       = bucket.first[jBucket];
+
+                    while (j != -1) {
+                        Particle& pj = particles[j];
+
+                        double dist = (pj.position - pi.position).norm();
+                        if (j != pi.id && dist < settings.re.max) {
+                            pi.neighbors.emplace_back(j, dist);
+                        }
+
+                        j = bucket.next[j];
+                    }
+                }
+            }
+        }
+    }
 }

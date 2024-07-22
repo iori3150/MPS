@@ -1,6 +1,5 @@
 #pragma once
 
-#include "bucket.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 
@@ -12,7 +11,6 @@ public:
 
 private:
     MPS mps;
-    Bucket bucket;
 
     void startSimulation();
     void endSimulation();
@@ -24,9 +22,6 @@ private:
 
     // main_loop()
     void write_data();
-
-    // bucket
-    void setNeighbors();
 
     // time calculation
     std::tuple<int, int, int> cal_h_m_s(int second);
