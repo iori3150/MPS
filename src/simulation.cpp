@@ -19,8 +19,6 @@ namespace fs = std::filesystem;
 #define ON 1
 #define OFF 0
 
-int np; // number of particles
-
 // other parameters
 double courantNumber;
 
@@ -97,11 +95,12 @@ void Simulation::read_data(std::vector<Particle>& particles) {
         exit(1);
     }
 
+    int numberOfParticles;
     file >> Time;
-    file >> np;
+    file >> numberOfParticles;
 
     int id;
-    rep(i, 0, np) {
+    rep(i, 0, numberOfParticles) {
         int type;
         double x, y, z, u, v, w;
         double pressure, n;
@@ -224,8 +223,8 @@ void Simulation::write_data() {
         sprintf(filename, "result/prof/output_%04d.prof", nfile);
         fp = fopen(filename, "w");
         fprintf(fp, "%lf\n", Time);
-        fprintf(fp, "%d\n", np);
-        rep(i, 0, np) {
+        fprintf(fp, "%d\n", mps.particles.size());
+        rep(i, 0, mps.particles.size()) {
             if (mps.particles[i].type == ParticleType::Ghost)
                 continue;
 
