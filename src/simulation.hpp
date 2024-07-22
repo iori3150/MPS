@@ -19,6 +19,9 @@ private:
     int timestep = 0;
     double time  = 0.0;
 
+    int resultFileNum;
+    FILE* logFile;
+
     void startSimulation();
     void endSimulation();
 

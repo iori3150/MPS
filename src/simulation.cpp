@@ -18,12 +18,6 @@ namespace chrono = std::chrono;
 namespace fs     = std::filesystem;
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
-#define ON 1
-#define OFF 0
-
-// write_data()
-int nfile; // number of files
-FILE* log_file;
 
 void Simulation::run() {
     startSimulation();
@@ -63,7 +57,7 @@ void Simulation::endSimulation() {
         std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime);
     printf("\nTotal Simulation Time = %s\n", formattedTime.c_str());
 
-    fclose(log_file);
+    fclose(logFile);
 
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
@@ -125,10 +119,10 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 
 void Simulation::set_parameter() {
     // write_data()
-    nfile = 0;
+    resultFileNum = 0;
     char filename[256];
     sprintf(filename, "result/result.log");
-    log_file = fopen(filename, "w");
+    logFile = fopen(filename, "w");
 }
 
 void Simulation::write_data(
@@ -181,13 +175,13 @@ void Simulation::write_data(
         remain,
         ave,
         last,
-        nfile,
+        resultFileNum,
         courantNumber
     );
 
     // log file output
     fprintf(
-        log_file,
+        logFile,
         "%d: settings.dt=%gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   "
         "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
         timestep,
@@ -198,7 +192,7 @@ void Simulation::write_data(
         remain,
         ave,
         last,
-        nfile,
+        resultFileNum,
         courantNumber
     );
 
@@ -206,11 +200,11 @@ void Simulation::write_data(
     fprintf(stderr, "%4d: t=%.3lfs\n", timestep, time);
 
     // prof file output
-    if (time >= settings.outputInterval * double(nfile)) {
+    if (time >= settings.outputInterval * double(resultFileNum)) {
         FILE* fp;
         char filename[256];
 
-        sprintf(filename, "result/prof/output_%04d.prof", nfile);
+        sprintf(filename, "result/prof/output_%04d.prof", resultFileNum);
         fp = fopen(filename, "w");
         fprintf(fp, "%lf\n", time);
         fprintf(fp, "%d\n", mps.particles.size());
@@ -236,7 +230,7 @@ void Simulation::write_data(
         }
         fclose(fp);
 
-        nfile++;
+        resultFileNum++;
     }
 }
 
