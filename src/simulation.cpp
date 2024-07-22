@@ -31,6 +31,7 @@ void Simulation::run() {
 
     write_data(0.0, chrono::system_clock::now());
 
+    startTime = chrono::system_clock::now();
     while (time <= settings.finishTime) {
         chrono::system_clock::time_point timestepStartTime = chrono::system_clock::now();
 
@@ -47,8 +48,6 @@ void Simulation::run() {
 
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
-
-    startTime = chrono::system_clock::now();
 
     logFile.open("result/result.log");
     if (!logFile.is_open()) {
@@ -131,34 +130,21 @@ void Simulation::write_data(
     const double& courantNumber, const chrono::system_clock::time_point& timestepStartTime
 ) {
     // elapsed
-    char elapsed[256];
-    sprintf(
-        elapsed,
-        "elapsed=%s",
-        std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime).c_str()
-    );
+    chrono::seconds elapsed =
+        chrono::duration_cast<chrono::seconds>(chrono::system_clock::now() - startTime);
 
     // ave [s]/[timestep]
     double ave = 0;
-    if (timestep != 0)
-        ave = chrono::duration_cast<chrono::seconds>(
+    if (timestep != 0) {
+        ave = chrono::duration_cast<chrono::milliseconds>(
                   chrono::system_clock::now() - startTime
               )
                   .count() /
-              timestep;
+              (double) (1000 * timestep);
+    }
 
     // remain
-    char remain[256];
-    int remainingTimeInt = ((settings.finishTime - time) / time) * ave * timestep;
-    chrono::seconds remainingTime{remainingTimeInt};
-    if (timestep == 0)
-        sprintf(remain, "remain=---");
-    else
-        sprintf(
-            remain,
-            "remain=%s",
-            std::format("{:%Hh %Mm %Ss}", remainingTime).c_str()
-        );
+    chrono::seconds remain{int(((settings.finishTime - time) / time) * ave * timestep)};
 
     // last
     chrono::milliseconds last = chrono::duration_cast<chrono::milliseconds>(
@@ -166,23 +152,27 @@ void Simulation::write_data(
     );
 
     // terminal output
-    printf(
-        "%d: settings.dt=%.gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   "
-        "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
-        timestep,
-        settings.dt,
-        time,
-        settings.finishTime,
-        elapsed,
-        remain,
-        ave,
-        last,
-        resultFileNum,
-        courantNumber
-    );
+    cout << std::format(
+                "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
+                "remain={:%Hh %Mm %Ss}   "
+                "ave={:.3f}s/step   last={:%S.3f}s/step   out={}files   Courant={:.2f}",
+                timestep,
+                settings.dt,
+                time,
+                settings.finishTime,
+                elapsed,
+                remain,
+                ave,
+                last,
+                resultFileNum,
+                courantNumber
+            )
+         << endl;
 
     logFile << std::format(
-                   "{}: dt={}s   t={:.3f}s   fin={:.1f}s   {}   {}   ave={:.3f}s/step "
+                   "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
+                   "remain={:%Hh %Mm %Ss}   "
+                   "ave={:.3f}s/step   "
                    "last={:%S}s/step   out={}files   Courant={:.2f}",
                    timestep,
                    settings.dt,
@@ -233,15 +223,4 @@ void Simulation::write_data(
 
         resultFileNum++;
     }
-}
-
-std::tuple<int, int, int> Simulation::getTimeDuration(
-    const chrono::system_clock::time_point& start,
-    const chrono::system_clock::time_point& end
-) {
-    chrono::seconds duration = chrono::duration_cast<chrono::seconds>(end - start);
-    chrono::hours hours      = chrono::duration_cast<chrono::hours>(duration);
-    chrono::minutes minutes  = chrono::duration_cast<chrono::minutes>(duration - hours);
-    chrono::seconds seconds  = duration - hours - minutes;
-    return std::forward_as_tuple(hours.count(), minutes.count(), seconds.count());
 }

@@ -31,9 +31,4 @@ private:
         const double& courantNumber,
         const std::chrono::system_clock::time_point& timestepStartTime
     );
-
-    std::tuple<int, int, int> getTimeDuration(
-        const std::chrono::system_clock::time_point& start,
-        const std::chrono::system_clock::time_point& end
-    );
 };
