@@ -14,8 +14,10 @@
 using std::cerr;
 using std::cout;
 using std::endl;
-namespace chrono = std::chrono;
-namespace fs     = std::filesystem;
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::seconds;
+using std::chrono::system_clock;
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
 
@@ -27,14 +29,13 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    set_parameter();
-
     timestep = 0;
 
-    write_data(0.0, chrono::system_clock::now());
+    write_data(0.0, system_clock::now());
 
+    startTime = system_clock::now();
     while (time <= settings.finishTime) {
-        chrono::system_clock::time_point timestepStartTime = chrono::system_clock::now();
+        system_clock::time_point timestepStartTime = system_clock::now();
 
         mps.stepForward();
         double courantNumber = mps.calcCourantNumber();
@@ -49,15 +50,23 @@ void Simulation::run() {
 
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
-    startTime = chrono::system_clock::now();
+
+    logFile.open("result/result.log");
+    if (!logFile.is_open()) {
+        cerr << "ERROR: Could not open the log file: " << resultFileNum << std::endl;
+        exit(-1);
+    }
 }
 
 void Simulation::endSimulation() {
-    std::string formattedTime =
-        std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime);
-    printf("\nTotal Simulation Time = %s\n", formattedTime.c_str());
+    cout << endl
+         << std::format(
+                "Total Simulation Time = {:%Hh %Mm %Ss}",
+                duration_cast<seconds>(system_clock::now() - startTime)
+            )
+         << endl;
 
-    fclose(logFile);
+    logFile.close();
 
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 }
@@ -117,130 +126,99 @@ void Simulation::read_data(std::vector<Particle>& particles) {
     file.close();
 }
 
-void Simulation::set_parameter() {
-    // write_data()
-    resultFileNum = 0;
-    char filename[256];
-    sprintf(filename, "result/result.log");
-    logFile = fopen(filename, "w");
-}
-
 void Simulation::write_data(
-    const double& courantNumber, const chrono::system_clock::time_point& timestepStartTime
+    const double& courantNumber, const system_clock::time_point& timestepStartTime
 ) {
     // elapsed
-    char elapsed[256];
-    sprintf(
-        elapsed,
-        "elapsed=%s",
-        std::format("{:%Hh %Mm %Ss}", chrono::system_clock::now() - startTime).c_str()
-    );
+    seconds elapsed = duration_cast<seconds>(system_clock::now() - startTime);
 
     // ave [s]/[timestep]
     double ave = 0;
-    if (timestep != 0)
-        ave = chrono::duration_cast<chrono::seconds>(
-                  chrono::system_clock::now() - startTime
-              )
-                  .count() /
-              timestep;
+    if (timestep != 0) {
+        ave = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
+              (double) (1000 * timestep);
+    }
 
     // remain
-    char remain[256];
-    int remainingTimeInt = ((settings.finishTime - time) / time) * ave * timestep;
-    chrono::seconds remainingTime{remainingTimeInt};
-    if (timestep == 0)
-        sprintf(remain, "remain=---");
-    else
-        sprintf(
-            remain,
-            "remain=%s",
-            std::format("{:%Hh %Mm %Ss}", remainingTime).c_str()
-        );
+    seconds remain{int(((settings.finishTime - time) / time) * ave * timestep)};
 
     // last
-    chrono::milliseconds last = chrono::duration_cast<chrono::milliseconds>(
-        chrono::system_clock::now() - timestepStartTime
-    );
+    milliseconds last =
+        duration_cast<milliseconds>(system_clock::now() - timestepStartTime);
 
-    // terminal output
-    printf(
-        "%d: settings.dt=%.gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   "
-        "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
-        timestep,
-        settings.dt,
-        time,
-        settings.finishTime,
-        elapsed,
-        remain,
-        ave,
-        last,
-        resultFileNum,
-        courantNumber
-    );
+    cout << std::format(
+                "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
+                "remain={:%Hh %Mm %Ss}   "
+                "ave={:.3f}s/step   last={:%S.3f}s/step   out={}files   Courant={:.2f}",
+                timestep,
+                settings.dt,
+                time,
+                settings.finishTime,
+                elapsed,
+                remain,
+                ave,
+                last,
+                resultFileNum,
+                courantNumber
+            )
+         << endl;
 
-    // log file output
-    fprintf(
-        logFile,
-        "%d: settings.dt=%gs   t=%.3lfs   fin=%.1lfs   %s   %s   ave=%.3lfs/step   "
-        "last=%.3lfs/step   out=%dfiles   Courant=%.2lf\n",
-        timestep,
-        settings.dt,
-        time,
-        settings.finishTime,
-        elapsed,
-        remain,
-        ave,
-        last,
-        resultFileNum,
-        courantNumber
-    );
+    logFile << std::format(
+                   "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
+                   "remain={:%Hh %Mm %Ss}   "
+                   "ave={:.3f}s/step   "
+                   "last={:%S}s/step   out={}files   Courant={:.2f}",
+                   timestep,
+                   settings.dt,
+                   time,
+                   settings.finishTime,
+                   elapsed,
+                   remain,
+                   ave,
+                   last,
+                   resultFileNum,
+                   courantNumber
+               )
+            << endl;
 
-    // error file output
-    fprintf(stderr, "%4d: t=%.3lfs\n", timestep, time);
-
-    // prof file output
     if (time >= settings.outputInterval * double(resultFileNum)) {
-        FILE* fp;
-        char filename[256];
+        std::string filename =
+            std::format("result/prof/output_{:04d}.prof", resultFileNum);
 
-        sprintf(filename, "result/prof/output_%04d.prof", resultFileNum);
-        fp = fopen(filename, "w");
-        fprintf(fp, "%lf\n", time);
-        fprintf(fp, "%d\n", mps.particles.size());
-        rep(i, 0, mps.particles.size()) {
-            if (mps.particles[i].type == ParticleType::Ghost)
-                continue;
-
-            fprintf(
-                fp,
-                "%4d %2d % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 08.3lf % 09.3lf "
-                "% 08.3lf\n",
-                i,
-                mps.particles[i].type,
-                mps.particles[i].position.x(),
-                mps.particles[i].position.y(),
-                mps.particles[i].position.z(),
-                mps.particles[i].velocity[0],
-                mps.particles[i].velocity[1],
-                mps.particles[i].velocity[2],
-                mps.particles[i].pressure,
-                mps.particles[i].numberDensity
+        std::ofstream outFile(filename);
+        if (!outFile.is_open()) {
+            throw std::runtime_error(
+                std::format("Could not open result file: {}", filename)
             );
         }
-        fclose(fp);
+
+        outFile << time << endl;
+        outFile << mps.particles.size() << endl;
+        for (auto& pi : mps.particles) {
+            if (pi.type == ParticleType::Ghost) {
+                continue;
+            }
+
+            outFile << std::format(
+                           "{:4d} {:2d} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} "
+                           "{:9.3f} "
+                           "{:8.3f}",
+                           pi.id,
+                           static_cast<int>(pi.type),
+                           pi.position.x(),
+                           pi.position.y(),
+                           pi.position.z(),
+                           pi.velocity.x(),
+                           pi.velocity.y(),
+                           pi.velocity.z(),
+                           pi.pressure,
+                           pi.numberDensity
+                       )
+                    << endl;
+        }
+
+        outFile.close();
 
         resultFileNum++;
     }
-}
-
-std::tuple<int, int, int> Simulation::getTimeDuration(
-    const chrono::system_clock::time_point& start,
-    const chrono::system_clock::time_point& end
-) {
-    chrono::seconds duration = chrono::duration_cast<chrono::seconds>(end - start);
-    chrono::hours hours      = chrono::duration_cast<chrono::hours>(duration);
-    chrono::minutes minutes  = chrono::duration_cast<chrono::minutes>(duration - hours);
-    chrono::seconds seconds  = duration - hours - minutes;
-    return std::forward_as_tuple(hours.count(), minutes.count(), seconds.count());
 }
