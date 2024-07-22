@@ -1,3 +1,7 @@
+# Create build folder if it does not exist
+if (-Not (Test-Path -Path build)) {
+  New-Item -ItemType Directory -Path build
+}
 Remove-Item build/*
 clang++ -std=c++17 -fopenmp -I eigen-3.4.0 -c src/main.cpp -o build/main.o
 clang++ -std=c++17 -fopenmp -I eigen-3.4.0 -c src/simulation.cpp -o build/simulation.o
