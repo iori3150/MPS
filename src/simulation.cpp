@@ -155,7 +155,6 @@ void Simulation::write_data(
 
     seconds remain{int(((settings.finishTime - time) / time) * average * timestep)};
 
-    // last
     milliseconds last =
         duration_cast<milliseconds>(system_clock::now() - timestepStartTime);
 
