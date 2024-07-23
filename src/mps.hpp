@@ -42,9 +42,7 @@ private:
     void setBoundaryCondition();
     void setSourceTerm();
     void setMatrix();
-    void exceptionalProcessingForBoundaryCondition();
-    void checkBoundaryCondition();
-    void increaseDiagonalTerm();
+    void ensureDirichletBoundaryConnection();
     void solvePoissonEquation();
     void removeNegativePressure();
     void setMinimumPressure();
