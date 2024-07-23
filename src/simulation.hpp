@@ -16,10 +16,10 @@ public:
 private:
     MPS mps;
     Settings settings;
-    std::chrono::system_clock::time_point simulationStartTime;
 
     int timestep = 0;
     double time  = 0.0;
+    std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
 
     int resultFileNum = 0;
     std::ofstream logFile;
