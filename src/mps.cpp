@@ -18,7 +18,8 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     this->sourceTerm.resize(particles.size());
     this->coeffMatrix.resize(particles.size(), particles.size());
     this->flagForCheckingBoundaryCondition.resize(particles.size());
-    this->bucket = Bucket(settings.re.max, settings.domain, particles.size());
+    this->bucket =
+        Bucket(settings.effectiveRadius.max, settings.domain, particles.size());
 
     int iZ_start = -4;
     int iZ_end   = 5;
@@ -40,14 +41,24 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
                 double dist  = r.norm();
                 double dist2 = dist * dist;
 
-                n0.numberDensity += weight(dist, settings.re.numberDensity);
-                n0.gradient += weight(dist, settings.re.gradient);
-                n0.laplacian += weight(dist, settings.re.laplacian);
-                lambda += dist2 * weight(dist, settings.re.laplacian);
+                initialNumberDensity.pressure +=
+                    weight(dist, settings.effectiveRadius.pressure);
+                initialNumberDensity.viscosity +=
+                    weight(dist, settings.effectiveRadius.viscosity);
+                initialNumberDensity.surfaceDetection +=
+                    weight(dist, settings.effectiveRadius.surfaceDetection);
+                lambda.pressure +=
+                    dist2 * weight(dist, settings.effectiveRadius.pressure);
+                lambda.viscosity +=
+                    dist2 * weight(dist, settings.effectiveRadius.viscosity);
+                lambda.surfaceDetection +=
+                    dist2 * weight(dist, settings.effectiveRadius.surfaceDetection);
             }
         }
     }
-    lambda /= n0.laplacian;
+    lambda.pressure /= initialNumberDensity.pressure;
+    lambda.viscosity /= initialNumberDensity.viscosity;
+    lambda.surfaceDetection /= initialNumberDensity.surfaceDetection;
 }
 
 void MPS::calcGravity() {
@@ -63,10 +74,11 @@ void MPS::calcGravity() {
 }
 
 void MPS::calcViscosity() {
-    const double& n0 = this->n0.laplacian;
-    const double& re = settings.re.laplacian;
+    const double& n0     = this->initialNumberDensity.viscosity;
+    const double& re     = settings.effectiveRadius.viscosity;
+    const double& lambda = this->lambda.viscosity;
 
-    double A = (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0 * lambda);
+    double a = (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0 * lambda);
 
 #pragma omp parallel for
     for (auto& pi : particles) {
@@ -79,12 +91,12 @@ void MPS::calcViscosity() {
             const Particle& pj = particles[neighbor.id];
             const double dist  = neighbor.distance;
 
-            if (dist < settings.re.laplacian) {
+            if (dist < re) {
                 viscosity_term += (pj.velocity - pi.velocity) * weight(dist, re);
             }
         }
 
-        viscosity_term *= A;
+        viscosity_term *= a;
         pi.acceleration += viscosity_term;
     }
 }
@@ -140,7 +152,6 @@ void MPS::collision() {
 }
 
 void MPS::calcPressure() {
-    calcNumberDensity();
     setBoundaryCondition();
     setSourceTerm();
     setMatrix();
@@ -149,27 +160,8 @@ void MPS::calcPressure() {
     setMinimumPressure();
 }
 
-void MPS::calcNumberDensity() {
-#pragma omp parallel for
-    for (auto& pi : particles) {
-        if (pi.type == ParticleType::Ghost)
-            continue;
-
-        pi.numberDensity = 0.0;
-        for (auto& neighbor : pi.neighbors) {
-            const double& dist = neighbor.distance;
-            const double& re   = settings.re.numberDensity;
-
-            if (dist < re) {
-                pi.numberDensity += weight(dist, re);
-            }
-        }
-        pi.numberDensityRatio = pi.numberDensity / n0.numberDensity;
-    }
-}
-
 void MPS::setBoundaryCondition() {
-    double n0   = this->n0.numberDensity;
+    double n0   = this->initialNumberDensity.surfaceDetection;
     double beta = settings.thresholdForSurfaceDetection;
 
 #pragma omp parallel for
@@ -177,7 +169,7 @@ void MPS::setBoundaryCondition() {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
             pi.boundaryCondition = BoundaryCondition::GhostOrDummy;
 
-        } else if (pi.numberDensity < beta * n0) {
+        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {
@@ -187,14 +179,15 @@ void MPS::setBoundaryCondition() {
 }
 
 void MPS::setSourceTerm() {
-    double n0    = this->n0.numberDensity;
-    double gamma = settings.relaxationCoefficientForPressure;
+    const double n0    = this->initialNumberDensity.pressure;
+    const double re    = settings.effectiveRadius.pressure;
+    const double gamma = settings.relaxationCoefficientForPressure;
 
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition == BoundaryCondition::Inner) {
             sourceTerm[pi.id] = gamma * (1.0 / (settings.dt * settings.dt)) *
-                                ((pi.numberDensity - n0) / n0);
+                                ((getNumberDensity(pi, re) - n0) / n0);
 
         } else {
             sourceTerm[pi.id] = 0.0;
@@ -205,9 +198,10 @@ void MPS::setSourceTerm() {
 void MPS::setMatrix() {
     coeffMatrix.setZero();
 
-    const double& n0 = this->n0.laplacian;
-    const double& re = settings.re.laplacian;
-    const double a   = 2.0 * settings.dim / (n0 * lambda);
+    const double n0     = this->initialNumberDensity.pressure;
+    const double re     = settings.effectiveRadius.pressure;
+    const double lambda = this->lambda.pressure;
+    const double a      = 2.0 * settings.dim / (n0 * lambda);
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition != BoundaryCondition::Inner)
@@ -278,7 +272,7 @@ void MPS::checkBoundaryCondition() {
             for (auto& neighbor : particles[i].neighbors) {
                 const Particle& pj = particles[neighbor.id];
                 const double& dist = neighbor.distance;
-                const double& re   = settings.re.laplacian;
+                const double& re   = settings.effectiveRadius.pressure;
 
                 if (flagForCheckingBoundaryCondition[pj.id] !=
                     DIRICHLET_BOUNDARY_IS_NOT_CONNECTED)
@@ -338,7 +332,7 @@ void MPS::setMinimumPressure() {
         for (auto& neighbor : pi.neighbors) {
             const Particle& pj = particles[neighbor.id];
             const double& dist = neighbor.distance;
-            const double& re   = settings.re.gradient;
+            const double& re   = settings.effectiveRadius.pressure;
 
             if (pj.type == ParticleType::DummyWall)
                 continue;
@@ -352,8 +346,8 @@ void MPS::setMinimumPressure() {
 }
 
 void MPS::calcPressureGradient() {
-    const double& n0 = this->n0.gradient;
-    const double& re = settings.re.gradient;
+    const double& n0 = initialNumberDensity.pressure;
+    const double& re = settings.effectiveRadius.pressure;
 
 #pragma omp parallel for
     for (auto& pi : particles) {
@@ -413,6 +407,18 @@ double MPS::getCourantNumber() {
     return maxCourantNumber;
 }
 
+double MPS::getNumberDensity(const Particle& pi, const double& re) {
+    double numberDensity = 0.0;
+    for (auto& neighbor : pi.neighbors) {
+        const double& dist = neighbor.distance;
+
+        if (dist < re) {
+            numberDensity += weight(dist, re);
+        }
+    }
+    return numberDensity;
+}
+
 double MPS::weight(const double& dist, const double& re) {
     double w = 0.0;
 
@@ -446,7 +452,7 @@ void MPS::setNeighbors() {
                         Particle& pj = particles[j];
 
                         double dist = (pj.position - pi.position).norm();
-                        if (j != pi.id && dist < settings.re.max) {
+                        if (j != pi.id && dist < settings.effectiveRadius.max) {
                             pi.neighbors.emplace_back(j, dist);
                         }
 
@@ -458,7 +464,7 @@ void MPS::setNeighbors() {
     }
 }
 
-void MPS::stepForward() {
+void MPS::stepForward(const bool isTimeToSave) {
     setNeighbors();
     calcGravity();
     calcViscosity();
@@ -472,7 +478,27 @@ void MPS::stepForward() {
     calcPressureGradient();
     moveParticlesWithPressureGradient();
 
-    // Calculate numbderDensity at the final position.
-    // This is not for the simulation, but for the visualization.
-    calcNumberDensity();
+    if (isTimeToSave) {
+        setNumberDensityForDisplay();
+    }
+}
+
+// Set the number density at the final position so that users can visually comprehend how
+// dense/sparse the particles are.
+// This function should only be called when it's time to save, because setting neighbors
+// and number density is actually unnecessary for the simulation.
+void MPS::setNumberDensityForDisplay() {
+    setNeighbors();
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.boundaryCondition == BoundaryCondition::Surface) {
+            pi.numberDensityRatio = 0.0;
+
+        } else {
+            pi.numberDensityRatio =
+                getNumberDensity(pi, settings.effectiveRadius.pressure) /
+                initialNumberDensity.pressure;
+        }
+    }
 }

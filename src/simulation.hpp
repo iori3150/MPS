@@ -33,4 +33,5 @@ private:
         const std::chrono::system_clock::time_point& timeStepEndTime,
         const double& courantNumber
     );
+    bool isTimeToSave();
 };

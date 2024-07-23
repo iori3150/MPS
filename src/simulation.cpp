@@ -37,16 +37,16 @@ void Simulation::run() {
     while (time <= settings.finishTime) {
         auto timeStepStartTime = system_clock::now();
 
-        mps.stepForward();
-        timeStep++;
         time += settings.dt;
-
-        auto timeStepEndTime = system_clock::now();
-
-        if (time >= settings.outputInterval * double(saver.numberOfFiles)) {
+        mps.stepForward(isTimeToSave());
+        if (isTimeToSave()) {
             saver.save(mps.particles, time);
         }
+
+        auto timeStepEndTime = system_clock::now();
         timeStepReport(timeStepStartTime, timeStepEndTime, mps.getCourantNumber());
+
+        timeStep++;
     }
     simulationEndTime = system_clock::now();
 
@@ -203,4 +203,8 @@ void Simulation::timeStepReport(
         saver.numberOfFiles,
         formattedCourantNumber
     );
+}
+
+bool Simulation::isTimeToSave() {
+    return time >= settings.outputInterval * double(saver.numberOfFiles);
 }
