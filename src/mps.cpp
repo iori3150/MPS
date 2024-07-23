@@ -278,22 +278,29 @@ void MPS::ensureDirichletBoundaryConnection() {
         }
     }
 
+    // Beginning from Surface particles, perform BFS (Breath First Search) to check
+    // Dirichlet boundary connection
     for (auto& p : particles) {
         if (p.boundaryCondition != BoundaryCondition::Surface)
             continue;
 
+        // Create a queue for BFS and push the id of the Surface particle
         std::queue<int> queue;
         queue.push(p.id);
 
+        // Loop through the queue until it's empty
         while (!queue.empty()) {
             const Particle& pi = particles[queue.front()];
             queue.pop();
 
+            // Look through all neighbors of particle i
             for (auto& neighbor : pi.neighbors) {
                 Particle& pj       = particles[neighbor.id];
                 const double& dist = neighbor.distance;
                 const double& re   = settings.effectiveRadius.pressure;
 
+                // If the neighbor is witin the effective radius and not yet marked, mark
+                // it as connected and add to the queue
                 if (dist < re && !pj.isDirichletBoundaryConnected) {
                     pj.isDirichletBoundaryConnected = true;
                     queue.push(pj.id);
