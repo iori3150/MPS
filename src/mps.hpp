@@ -22,9 +22,9 @@ private:
     Eigen::MatrixXd coeffMatrix;
     std::vector<double> flagForCheckingBoundaryCondition;
 
-    void calGravity();
-    void calViscosity();
-    void moveParticle();
+    void calcGravity();
+    void calcViscosity();
+    void moveParticles();
     void collision();
 
     void calcPressure();
@@ -40,7 +40,7 @@ private:
     void setMinimumPressure();
 
     void calcPressureGradient();
-    void moveParticleWithPressureGradient();
+    void moveParticlesWithPressureGradient();
 
     double weight(const double& dist, const double& re);
 

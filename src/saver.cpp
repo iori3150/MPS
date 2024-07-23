@@ -44,7 +44,8 @@ void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
         "Velocity.y (m/s)",
         "Velocity.z (m/s)",
         "Pressure (Pa)",
-        "Number Density"
+        "Number Density",
+        "Number Density Ratio"
     );
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Ghost) {
@@ -61,7 +62,8 @@ void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
             pi.velocity.y(),
             pi.velocity.z(),
             pi.pressure,
-            pi.numberDensity
+            pi.numberDensity,
+            pi.numberDensityRatio
         );
     }
 
@@ -120,7 +122,7 @@ void Saver::toVtu(const std::vector<Particle>& particles, const double& time) {
     // ---------------------
     outFile << "<PointData>" << endl;
 
-    dataArrayBegin(outFile, "1", "Int32", "Particle Type");
+    dataArrayBegin(outFile, "1", "Int32", "Type");
     for (auto& pi : particles) {
         outFile << static_cast<int>(pi.type) << endl;
     }
@@ -144,10 +146,10 @@ void Saver::toVtu(const std::vector<Particle>& particles, const double& time) {
         outFile << pi.numberDensity << endl;
     dataArrayEnd(outFile);
 
-    // dataArrayBegin(outFile, "1", "Float64", "Number Density Ratio");
-    // for (auto& pi : particles)
-    //     outFile << pi.numberDensity / n0ForNumberDensity << std::endl;
-    // dataArrayEnd(outFile);
+    dataArrayBegin(outFile, "1", "Float64", "Number Density Ratio");
+    for (auto& pi : particles)
+        outFile << pi.numberDensityRatio << std::endl;
+    dataArrayEnd(outFile);
 
     dataArrayBegin(outFile, "1", "Int32", "Boundary Condition");
     for (auto& pi : particles)

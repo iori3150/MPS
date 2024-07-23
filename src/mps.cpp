@@ -50,7 +50,7 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     lambda /= n0.laplacian;
 }
 
-void MPS::calGravity() {
+void MPS::calcGravity() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Fluid) {
@@ -62,7 +62,7 @@ void MPS::calGravity() {
     }
 }
 
-void MPS::calViscosity() {
+void MPS::calcViscosity() {
     const double& n0 = this->n0.laplacian;
     const double& re = settings.re.laplacian;
 
@@ -89,7 +89,7 @@ void MPS::calViscosity() {
     }
 }
 
-void MPS::moveParticle() {
+void MPS::moveParticles() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Fluid) {
@@ -156,7 +156,6 @@ void MPS::calcNumberDensity() {
             continue;
 
         pi.numberDensity = 0.0;
-
         for (auto& neighbor : pi.neighbors) {
             const double& dist = neighbor.distance;
             const double& re   = settings.re.numberDensity;
@@ -165,6 +164,7 @@ void MPS::calcNumberDensity() {
                 pi.numberDensity += weight(dist, re);
             }
         }
+        pi.numberDensityRatio = pi.numberDensity / n0.numberDensity;
     }
 }
 
@@ -381,7 +381,7 @@ void MPS::calcPressureGradient() {
     }
 }
 
-void MPS::moveParticleWithPressureGradient() {
+void MPS::moveParticlesWithPressureGradient() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Fluid) {
@@ -460,9 +460,9 @@ void MPS::setNeighbors() {
 
 void MPS::stepForward() {
     setNeighbors();
-    calGravity();
-    calViscosity();
-    moveParticle();
+    calcGravity();
+    calcViscosity();
+    moveParticles();
 
     setNeighbors();
     collision();
@@ -470,5 +470,9 @@ void MPS::stepForward() {
     setNeighbors();
     calcPressure();
     calcPressureGradient();
-    moveParticleWithPressureGradient();
+    moveParticlesWithPressureGradient();
+
+    // Calculate numbderDensity at the final position.
+    // This is not for the simulation, but for the visualization.
+    calcNumberDensity();
 }
