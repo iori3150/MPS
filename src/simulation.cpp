@@ -31,21 +31,25 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    timestep = 0;
+    saver.save(mps.particles, time, resultFileNum);
 
-    write_data(0.0, system_clock::now());
-
-    startTime = system_clock::now();
+    simulationStartTime = system_clock::now();
     while (time <= settings.finishTime) {
-        system_clock::time_point timestepStartTime = system_clock::now();
+        auto timestepStartTime = system_clock::now();
 
         mps.stepForward();
-        double courantNumber = mps.calcCourantNumber();
-
         timestep++;
         time += settings.dt;
-        write_data(courantNumber, timestepStartTime);
+
+        auto timestepEndTime = system_clock::now();
+
+        if (time >= settings.outputInterval * double(resultFileNum)) {
+            saver.save(mps.particles, time, resultFileNum);
+            resultFileNum++;
+        }
+        timeStepReport(timestepStartTime, timestepEndTime, mps.getCourantNumber());
     }
+    simulationEndTime = system_clock::now();
 
     endSimulation();
 }
@@ -77,16 +81,16 @@ void Simulation::startSimulation() {
 }
 
 void Simulation::endSimulation() {
+    auto totalSimulationTime =
+        duration_cast<seconds>(simulationEndTime - simulationStartTime);
+
     cout << endl
-         << std::format(
-                "Total Simulation Time = {:%Hh %Mm %Ss}",
-                duration_cast<seconds>(system_clock::now() - startTime)
-            )
+         << std::format("Total Simulation Time = {:%Hh %Mm %Ss}", totalSimulationTime)
          << endl;
 
-    logFile.close();
-
     cout << endl << "*** END SIMULATION ***" << endl << endl;
+
+    logFile.close();
 }
 
 void Simulation::read_data(std::vector<Particle>& particles) {
@@ -144,28 +148,30 @@ void Simulation::read_data(std::vector<Particle>& particles) {
     file.close();
 }
 
-void Simulation::write_data(
-    const double& courantNumber, const system_clock::time_point& timestepStartTime
+void Simulation::timeStepReport(
+    const system_clock::time_point& timeStepStartTime,
+    const system_clock::time_point& timeStepEndTime,
+    const double& courantNumber
 ) {
-    seconds elapsed = duration_cast<seconds>(system_clock::now() - startTime);
+    auto elapsed = duration_cast<seconds>(timeStepEndTime - simulationStartTime);
 
     double average = 0;
     if (timestep != 0) {
-        average = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
-                  (double) (1000 * timestep);
+        average =
+            duration_cast<milliseconds>(timeStepEndTime - simulationStartTime).count() /
+            (double) (1000 * timestep);
     }
 
     seconds remain{int(((settings.finishTime - time) / time) * average * timestep)};
 
-    milliseconds last =
-        duration_cast<milliseconds>(system_clock::now() - timestepStartTime);
+    auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
-    std::string formattedTime          = std::format("{:.3f}", time);
-    std::string formattedElapsed       = std::format("{:%Hh %Mm %Ss}", elapsed);
-    std::string formattedAverage       = std::format("{:.3f}", average);
-    std::string formattedRemain        = std::format("{:%Hh %Mm %Ss}", remain);
-    std::string formattedLast          = std::format("{:%S}", last);
-    std::string formattedCourantNumber = std::format("{:.2f}", courantNumber);
+    auto formattedTime          = std::format("{:.3f}", time);
+    auto formattedElapsed       = std::format("{:%Hh %Mm %Ss}", elapsed);
+    auto formattedAverage       = std::format("{:.3f}", average);
+    auto formattedRemain        = std::format("{:%Hh %Mm %Ss}", remain);
+    auto formattedLast          = std::format("{:%S}", last);
+    auto formattedCourantNumber = std::format("{:.2f}", courantNumber);
 
     cout << std::format(
                 "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
@@ -197,9 +203,4 @@ void Simulation::write_data(
         resultFileNum,
         formattedCourantNumber
     );
-
-    if (time >= settings.outputInterval * double(resultFileNum)) {
-        saver.save(mps.particles, time, resultFileNum);
-        resultFileNum++;
-    }
 }

@@ -393,7 +393,7 @@ void MPS::moveParticleWithPressureGradient() {
     }
 }
 
-double MPS::calcCourantNumber() {
+double MPS::getCourantNumber() {
     double maxCourantNumber = 0.0;
 
     for (auto& pi : particles) {
