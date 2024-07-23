@@ -12,6 +12,15 @@ using std::cerr;
 using std::cout;
 using std::endl;
 
+double weight(const double& dist, const double& re) {
+    double w = 0.0;
+
+    if (dist < re)
+        w = (re / dist) - 1.0;
+
+    return w;
+}
+
 MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     this->settings  = settings;
     this->particles = particles;
@@ -21,11 +30,52 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     this->bucket =
         Bucket(settings.effectiveRadius.max, settings.domain, particles.size());
 
-    int iZ_start = -4;
-    int iZ_end   = 5;
-    if (settings.dim == 2) {
+    this->refValues.pressure = RefValues(
+        settings.dim,
+        settings.particleDistance,
+        settings.effectiveRadius.pressure
+    );
+    this->refValues.viscosity = RefValues(
+        settings.dim,
+        settings.particleDistance,
+        settings.effectiveRadius.viscosity
+    );
+    this->refValues.surfaceDetection = RefValues(
+        settings.dim,
+        settings.particleDistance,
+        settings.effectiveRadius.surfaceDetection
+    );
+}
+
+void MPS::stepForward(const bool isTimeToSave) {
+    setNeighbors();
+    calcGravity();
+    calcViscosity();
+    moveParticles();
+
+    setNeighbors();
+    collision();
+
+    setNeighbors();
+    calcPressure();
+    calcPressureGradient();
+    moveParticlesWithPressureGradient();
+
+    if (isTimeToSave) {
+        setNumberDensityForDisplay();
+    }
+}
+
+RefValues::RefValues(
+    const int& dim, const double& particleDistance, const double& effectiveRadius
+) {
+    int iZ_start, iZ_end;
+    if (dim == 2) {
         iZ_start = 0;
         iZ_end   = 1;
+    } else {
+        iZ_start = -4;
+        iZ_end   = 5;
     }
     for (int iX = -4; iX < 5; iX++) {
         for (int iY = -4; iY < 5; iY++) {
@@ -34,31 +84,19 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
                     continue;
 
                 Eigen::Vector3d r(
-                    settings.particleDistance * (double) iX,
-                    settings.particleDistance * (double) iY,
-                    settings.particleDistance * (double) iZ
+                    particleDistance * (double) iX,
+                    particleDistance * (double) iY,
+                    particleDistance * (double) iZ
                 );
                 double dist  = r.norm();
                 double dist2 = dist * dist;
 
-                initialNumberDensity.pressure +=
-                    weight(dist, settings.effectiveRadius.pressure);
-                initialNumberDensity.viscosity +=
-                    weight(dist, settings.effectiveRadius.viscosity);
-                initialNumberDensity.surfaceDetection +=
-                    weight(dist, settings.effectiveRadius.surfaceDetection);
-                lambda.pressure +=
-                    dist2 * weight(dist, settings.effectiveRadius.pressure);
-                lambda.viscosity +=
-                    dist2 * weight(dist, settings.effectiveRadius.viscosity);
-                lambda.surfaceDetection +=
-                    dist2 * weight(dist, settings.effectiveRadius.surfaceDetection);
+                initialNumberDensity += weight(dist, effectiveRadius);
+                lambda += dist2 * weight(dist, effectiveRadius);
             }
         }
     }
-    lambda.pressure /= initialNumberDensity.pressure;
-    lambda.viscosity /= initialNumberDensity.viscosity;
-    lambda.surfaceDetection /= initialNumberDensity.surfaceDetection;
+    lambda /= initialNumberDensity;
 }
 
 void MPS::calcGravity() {
@@ -74,9 +112,9 @@ void MPS::calcGravity() {
 }
 
 void MPS::calcViscosity() {
-    const double& n0     = this->initialNumberDensity.viscosity;
     const double& re     = settings.effectiveRadius.viscosity;
-    const double& lambda = this->lambda.viscosity;
+    const double& n0     = refValues.viscosity.initialNumberDensity;
+    const double& lambda = refValues.viscosity.lambda;
 
     double a = (settings.kinematicViscosity) * (2.0 * settings.dim) / (n0 * lambda);
 
@@ -161,7 +199,7 @@ void MPS::calcPressure() {
 }
 
 void MPS::setBoundaryCondition() {
-    double n0   = this->initialNumberDensity.surfaceDetection;
+    double n0   = refValues.surfaceDetection.initialNumberDensity;
     double beta = settings.thresholdForSurfaceDetection;
 
 #pragma omp parallel for
@@ -179,8 +217,8 @@ void MPS::setBoundaryCondition() {
 }
 
 void MPS::setSourceTerm() {
-    const double n0    = this->initialNumberDensity.pressure;
     const double re    = settings.effectiveRadius.pressure;
+    const double n0    = refValues.pressure.initialNumberDensity;
     const double gamma = settings.relaxationCoefficientForPressure;
 
 #pragma omp parallel for
@@ -198,9 +236,9 @@ void MPS::setSourceTerm() {
 void MPS::setMatrix() {
     coeffMatrix.setZero();
 
-    const double n0     = this->initialNumberDensity.pressure;
     const double re     = settings.effectiveRadius.pressure;
-    const double lambda = this->lambda.pressure;
+    const double n0     = refValues.pressure.initialNumberDensity;
+    const double lambda = refValues.pressure.lambda;
     const double a      = 2.0 * settings.dim / (n0 * lambda);
 #pragma omp parallel for
     for (auto& pi : particles) {
@@ -346,8 +384,8 @@ void MPS::setMinimumPressure() {
 }
 
 void MPS::calcPressureGradient() {
-    const double& n0 = initialNumberDensity.pressure;
     const double& re = settings.effectiveRadius.pressure;
+    const double& n0 = refValues.pressure.initialNumberDensity;
 
 #pragma omp parallel for
     for (auto& pi : particles) {
@@ -419,15 +457,6 @@ double MPS::getNumberDensity(const Particle& pi, const double& re) {
     return numberDensity;
 }
 
-double MPS::weight(const double& dist, const double& re) {
-    double w = 0.0;
-
-    if (dist < re)
-        w = (re / dist) - 1.0;
-
-    return w;
-}
-
 void MPS::setNeighbors() {
     bucket.storeParticles(particles);
 
@@ -464,25 +493,6 @@ void MPS::setNeighbors() {
     }
 }
 
-void MPS::stepForward(const bool isTimeToSave) {
-    setNeighbors();
-    calcGravity();
-    calcViscosity();
-    moveParticles();
-
-    setNeighbors();
-    collision();
-
-    setNeighbors();
-    calcPressure();
-    calcPressureGradient();
-    moveParticlesWithPressureGradient();
-
-    if (isTimeToSave) {
-        setNumberDensityForDisplay();
-    }
-}
-
 // Set the number density at the final position so that users can visually comprehend how
 // dense/sparse the particles are.
 // This function should only be called when it's time to save, because setting neighbors
@@ -498,7 +508,7 @@ void MPS::setNumberDensityForDisplay() {
         } else {
             pi.numberDensityRatio =
                 getNumberDensity(pi, settings.effectiveRadius.pressure) /
-                initialNumberDensity.pressure;
+                refValues.pressure.initialNumberDensity;
         }
     }
 }

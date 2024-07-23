@@ -6,21 +6,28 @@
 
 #include <map>
 
+class RefValues {
+private:
+public:
+    double initialNumberDensity = 0;
+    double lambda               = 0;
+
+    RefValues() = default;
+    RefValues(
+        const int& dim, const double& particleDistance, const double& effectiveRadius
+    );
+};
+
 class MPS {
 private:
-    struct {
-        double pressure         = 0.0;
-        double viscosity        = 0.0;
-        double surfaceDetection = 0.0;
-    } initialNumberDensity;
-    struct {
-        double pressure         = 0.0;
-        double viscosity        = 0.0;
-        double surfaceDetection = 0.0;
-    } lambda;
-
     Settings settings;
     Bucket bucket;
+
+    struct {
+        RefValues pressure;
+        RefValues viscosity;
+        RefValues surfaceDetection;
+    } refValues;
 
     Eigen::VectorXd sourceTerm;
     Eigen::MatrixXd coeffMatrix;
@@ -46,7 +53,6 @@ private:
     void moveParticlesWithPressureGradient();
 
     double getNumberDensity(const Particle& pi, const double& re);
-    double weight(const double& dist, const double& re);
 
     void setNeighbors();
 
