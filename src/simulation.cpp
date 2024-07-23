@@ -57,7 +57,7 @@ void Simulation::run() {
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
 
-    logFile.open("result/result.csv");
+    logFile.open("result/log.csv");
     if (!logFile.is_open()) {
         cerr << "ERROR: Could not open the log file: " << resultFileNum << std::endl;
         exit(-1);
