@@ -1,3 +1,6 @@
 [submodule "eigen-3.4.0"]
 	path = eigen-3.4.0
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "csv-parser-2.3.0"]
+	path = csv-parser-2.3.0
+	url = https://github.com/vincentlaucsb/csv-parser.git

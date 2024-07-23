@@ -1,6 +1,7 @@
 #include "simulation.hpp"
 
 #include "bucket.hpp"
+#include "csv.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
@@ -10,6 +11,7 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <string>
 
 using std::cerr;
 using std::cout;
@@ -51,11 +53,25 @@ void Simulation::run() {
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
 
-    logFile.open("result/result.log");
+    logFile.open("result/result.csv");
     if (!logFile.is_open()) {
         cerr << "ERROR: Could not open the log file: " << resultFileNum << std::endl;
         exit(-1);
     }
+    auto logFileWriter = csv::make_csv_writer(logFile);
+    logFileWriter << std::vector<std::string>{
+        "Timestep",
+        "Dt (s)",
+        "Current Time (s)",
+        "Finish Time (s)",
+        "Elapsed Time (h:m:s)",
+        "Elapsed Time (s)",
+        "Remaining Time (h:m:s)",
+        "Average Time per Timestep (s)",
+        "Time for This Timestep (s)",
+        "Number of Output Files",
+        "Courant Number"
+    };
 }
 
 void Simulation::endSimulation() {
@@ -129,57 +145,56 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 void Simulation::write_data(
     const double& courantNumber, const system_clock::time_point& timestepStartTime
 ) {
-    // elapsed
     seconds elapsed = duration_cast<seconds>(system_clock::now() - startTime);
 
-    // ave [s]/[timestep]
-    double ave = 0;
+    double average = 0;
     if (timestep != 0) {
-        ave = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
-              (double) (1000 * timestep);
+        average = duration_cast<milliseconds>(system_clock::now() - startTime).count() /
+                  (double) (1000 * timestep);
     }
 
-    // remain
-    seconds remain{int(((settings.finishTime - time) / time) * ave * timestep)};
+    seconds remain{int(((settings.finishTime - time) / time) * average * timestep)};
 
-    // last
     milliseconds last =
         duration_cast<milliseconds>(system_clock::now() - timestepStartTime);
 
+    std::string formattedTime          = std::format("{:.3f}", time);
+    std::string formattedElapsed       = std::format("{:%Hh %Mm %Ss}", elapsed);
+    std::string formattedAverage       = std::format("{:.3f}", average);
+    std::string formattedRemain        = std::format("{:%Hh %Mm %Ss}", remain);
+    std::string formattedLast          = std::format("{:%S}", last);
+    std::string formattedCourantNumber = std::format("{:.2f}", courantNumber);
+
     cout << std::format(
-                "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
-                "remain={:%Hh %Mm %Ss}   "
-                "ave={:.3f}s/step   last={:%S.3f}s/step   out={}files   Courant={:.2f}",
+                "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
+                "ave={}s/step   last={}s/step   out={}files   Courant={}",
                 timestep,
                 settings.dt,
-                time,
+                formattedTime,
                 settings.finishTime,
-                elapsed,
-                remain,
-                ave,
-                last,
+                formattedElapsed,
+                formattedRemain,
+                formattedAverage,
+                formattedLast,
                 resultFileNum,
-                courantNumber
+                formattedCourantNumber
             )
          << endl;
 
-    logFile << std::format(
-                   "{}: dt={}s   t={:.3f}s   fin={:.1f}s   elapsed={:%Hh %Mm %Ss}   "
-                   "remain={:%Hh %Mm %Ss}   "
-                   "ave={:.3f}s/step   "
-                   "last={:%S}s/step   out={}files   Courant={:.2f}",
-                   timestep,
-                   settings.dt,
-                   time,
-                   settings.finishTime,
-                   elapsed,
-                   remain,
-                   ave,
-                   last,
-                   resultFileNum,
-                   courantNumber
-               )
-            << endl;
+    auto logFileWriter = csv::make_csv_writer(logFile);
+    logFileWriter << std::make_tuple(
+        timestep,
+        settings.dt,
+        formattedTime,
+        settings.finishTime,
+        formattedElapsed,
+        elapsed.count(),
+        formattedRemain,
+        formattedAverage,
+        formattedLast,
+        resultFileNum,
+        formattedCourantNumber
+    );
 
     if (time >= settings.outputInterval * double(resultFileNum)) {
         std::string filename =
