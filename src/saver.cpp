@@ -13,10 +13,9 @@ Saver::Saver(const std::filesystem::path& outputDir) {
     std::filesystem::create_directory(outputDir / "csv");
 }
 
-void Saver::save(
-    const std::vector<Particle>& particles, const double& time, const int& fileNum
-) {
-    std::string filename = format("{}/csv/output_{:04}.csv", outputDir.string(), fileNum);
+void Saver::save(const std::vector<Particle>& particles, const double& time) {
+    std::string filename =
+        format("{}/csv/output_{:04}.csv", outputDir.string(), numberOfFiles);
 
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {
@@ -59,4 +58,5 @@ void Saver::save(
     }
 
     outFile.close();
+    numberOfFiles++;
 }

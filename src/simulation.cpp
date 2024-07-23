@@ -31,7 +31,7 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    saver.save(mps.particles, time, resultFileNum);
+    saver.save(mps.particles, time);
 
     simulationStartTime = system_clock::now();
     while (time <= settings.finishTime) {
@@ -43,9 +43,8 @@ void Simulation::run() {
 
         auto timeStepEndTime = system_clock::now();
 
-        if (time >= settings.outputInterval * double(resultFileNum)) {
-            saver.save(mps.particles, time, resultFileNum);
-            resultFileNum++;
+        if (time >= settings.outputInterval * double(saver.numberOfFiles)) {
+            saver.save(mps.particles, time);
         }
         timeStepReport(timeStepStartTime, timeStepEndTime, mps.getCourantNumber());
     }
@@ -59,7 +58,8 @@ void Simulation::startSimulation() {
 
     logFile.open("result/log.csv");
     if (!logFile.is_open()) {
-        cerr << "ERROR: Could not open the log file: " << resultFileNum << std::endl;
+        cerr << "ERROR: Could not open the log file: "
+             << "result/log.csv" << std::endl;
         exit(-1);
     }
     auto logFileWriter = csv::make_csv_writer(logFile);
@@ -184,7 +184,7 @@ void Simulation::timeStepReport(
                 formattedRemain,
                 formattedAverage,
                 formattedLast,
-                resultFileNum,
+                saver.numberOfFiles,
                 formattedCourantNumber
             )
          << endl;
@@ -200,7 +200,7 @@ void Simulation::timeStepReport(
         formattedRemain,
         formattedAverage,
         formattedLast,
-        resultFileNum,
+        saver.numberOfFiles,
         formattedCourantNumber
     );
 }
