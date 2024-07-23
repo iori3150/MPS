@@ -17,7 +17,7 @@ private:
     MPS mps;
     Settings settings;
 
-    int timestep = 0;
+    int timeStep = 0;
     double time  = 0.0;
     std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
 
