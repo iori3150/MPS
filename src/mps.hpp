@@ -4,6 +4,7 @@
 #include "particle.hpp"
 #include "settings.hpp"
 
+#include <Eigen/Sparse>
 #include <map>
 
 class RefValues {
@@ -29,9 +30,8 @@ private:
         RefValues surfaceDetection;
     } refValues;
 
+    Eigen::SparseMatrix<double, Eigen::RowMajor> coefficientMatrix;
     Eigen::VectorXd sourceTerm;
-    Eigen::MatrixXd coeffMatrix;
-    std::vector<double> flagForCheckingBoundaryCondition;
 
     void calcGravity();
     void calcViscosity();

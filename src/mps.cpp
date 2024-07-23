@@ -25,8 +25,7 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     this->settings  = settings;
     this->particles = particles;
     this->sourceTerm.resize(particles.size());
-    this->coeffMatrix.resize(particles.size(), particles.size());
-    this->flagForCheckingBoundaryCondition.resize(particles.size());
+    this->coefficientMatrix.resize(particles.size(), particles.size());
     this->bucket =
         Bucket(settings.effectiveRadius.max, settings.domain, particles.size());
 
@@ -234,7 +233,7 @@ void MPS::setSourceTerm() {
 }
 
 void MPS::setMatrix() {
-    coeffMatrix.setZero();
+    std::vector<Eigen::Triplet<double>> matrixTriplets;
 
     const double re     = settings.effectiveRadius.pressure;
     const double n0     = refValues.pressure.initialNumberDensity;
@@ -245,26 +244,27 @@ void MPS::setMatrix() {
         if (pi.boundaryCondition != BoundaryCondition::Inner)
             continue;
 
+        double coefficient_ii = 0.0;
         for (auto& neighbor : pi.neighbors) {
             const Particle& pj = particles[neighbor.id];
             const double& dist = neighbor.distance;
 
-            if (pj.type == ParticleType::DummyWall)
+            if (pj.boundaryCondition == BoundaryCondition::GhostOrDummy)
                 continue;
 
             if (dist < re) {
-                double coef_ij = a * weight(dist, re) / pi.density;
-
-                coeffMatrix(pi.id, pj.id) = (-1.0 * coef_ij);
-                coeffMatrix(pi.id, pi.id) += coef_ij;
+                double coefficient_ij = a * weight(dist, re) / pi.density;
+                matrixTriplets.emplace_back(pi.id, pj.id, -1.0 * coefficient_ij);
+                coefficient_ii += coefficient_ij;
             }
         }
 
-        coeffMatrix(pi.id, pi.id) +=
-            (settings.compressibility) / (settings.dt * settings.dt);
+        coefficient_ii += settings.compressibility / (settings.dt * settings.dt);
+        matrixTriplets.emplace_back(pi.id, pi.id, coefficient_ii);
     }
 
     exceptionalProcessingForBoundaryCondition();
+    coefficientMatrix.setFromTriplets(matrixTriplets.begin(), matrixTriplets.end());
 }
 
 void MPS::exceptionalProcessingForBoundaryCondition() {
@@ -289,13 +289,13 @@ void MPS::checkBoundaryCondition() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy) {
-            flagForCheckingBoundaryCondition[pi.id] = -1;
+            continue;
 
         } else if (pi.boundaryCondition == BoundaryCondition::Surface) {
-            flagForCheckingBoundaryCondition[pi.id] = DIRICHLET_BOUNDARY_IS_CONNECTED;
+            pi.isDirichletBoundaryConnected = true;
 
         } else {
-            flagForCheckingBoundaryCondition[pi.id] = DIRICHLET_BOUNDARY_IS_NOT_CONNECTED;
+            pi.isDirichletBoundaryConnected = false;
         }
     }
 

@@ -32,6 +32,7 @@ public:
     std::vector<Neighbor> neighbors;
 
     BoundaryCondition boundaryCondition;
+    bool isDirichletBoundaryConnected;
 
     Particle(
         const int& id,
