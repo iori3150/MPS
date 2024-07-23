@@ -48,13 +48,13 @@ struct Settings {
 
     // effective radius
     struct {
-        double numberDensity;
-        double gradient;
-        double laplacian;
+        double pressure;
+        double viscosity;
+        double surfaceDetection;
         double max;
-    } re{
-        2.1 * particleDistance,
-        2.1 * particleDistance,
+    } effectiveRadius{
+        3.1 * particleDistance,
+        3.1 * particleDistance,
         3.1 * particleDistance,
         3.1 * particleDistance
     };

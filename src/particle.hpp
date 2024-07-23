@@ -26,9 +26,8 @@ public:
     Eigen::Vector3d position, velocity;
     Eigen::Vector3d acceleration = Eigen::Vector3d::Zero();
     double pressure, minimumPressure;
-    double numberDensity      = 0;
-    double numberDensityRatio = 0;
     double density;
+    double numberDensityRatio = 0;
 
     std::vector<Neighbor> neighbors;
 

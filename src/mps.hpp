@@ -9,11 +9,15 @@
 class MPS {
 private:
     struct {
-        double numberDensity = 0.0;
-        double gradient      = 0.0;
-        double laplacian     = 0.0;
-    } n0;
-    double lambda = 0.0;
+        double pressure         = 0.0;
+        double viscosity        = 0.0;
+        double surfaceDetection = 0.0;
+    } initialNumberDensity;
+    struct {
+        double pressure         = 0.0;
+        double viscosity        = 0.0;
+        double surfaceDetection = 0.0;
+    } lambda;
 
     Settings settings;
     Bucket bucket;
@@ -28,7 +32,6 @@ private:
     void collision();
 
     void calcPressure();
-    void calcNumberDensity();
     void setBoundaryCondition();
     void setSourceTerm();
     void setMatrix();
@@ -42,9 +45,12 @@ private:
     void calcPressureGradient();
     void moveParticlesWithPressureGradient();
 
+    double getNumberDensity(const Particle& pi, const double& re);
     double weight(const double& dist, const double& re);
 
     void setNeighbors();
+
+    void setNumberDensityForDisplay();
 
 public:
     std::vector<Particle> particles;
@@ -52,7 +58,7 @@ public:
     MPS() = default;
     MPS(const Settings& settings, std::vector<Particle>& particles);
 
-    void stepForward();
+    void stepForward(const bool isTimeToSave);
 
     double getCourantNumber();
 };

@@ -44,7 +44,6 @@ void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
         "Velocity.y (m/s)",
         "Velocity.z (m/s)",
         "Pressure (Pa)",
-        "Number Density",
         "Number Density Ratio"
     );
     for (auto& pi : particles) {
@@ -62,7 +61,6 @@ void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
             pi.velocity.y(),
             pi.velocity.z(),
             pi.pressure,
-            pi.numberDensity,
             pi.numberDensityRatio
         );
     }
@@ -139,11 +137,6 @@ void Saver::toVtu(const std::vector<Particle>& particles, const double& time) {
     dataArrayBegin(outFile, "1", "Float64", "Pressure");
     for (const auto& pi : particles)
         outFile << pi.pressure << endl;
-    dataArrayEnd(outFile);
-
-    dataArrayBegin(outFile, "1", "Float64", "Number Density");
-    for (const auto& pi : particles)
-        outFile << pi.numberDensity << endl;
     dataArrayEnd(outFile);
 
     dataArrayBegin(outFile, "1", "Float64", "Number Density Ratio");
