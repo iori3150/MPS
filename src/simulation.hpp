@@ -16,7 +16,7 @@ public:
 private:
     MPS mps;
     Settings settings;
-    std::chrono::system_clock::time_point startTime;
+    std::chrono::system_clock::time_point simulationStartTime;
 
     int timestep = 0;
     double time  = 0.0;
@@ -29,8 +29,9 @@ private:
     void endSimulation();
 
     void read_data(std::vector<Particle>& particles);
-    void write_data(
-        const double& courantNumber,
-        const std::chrono::system_clock::time_point& timestepStartTime
+    void timeStepReport(
+        const std::chrono::system_clock::time_point& timeStepStartTime,
+        const std::chrono::system_clock::time_point& timeStepEndTime,
+        const double& courantNumber
     );
 };
