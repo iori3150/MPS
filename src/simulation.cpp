@@ -35,19 +35,19 @@ void Simulation::run() {
 
     simulationStartTime = system_clock::now();
     while (time <= settings.finishTime) {
-        auto timestepStartTime = system_clock::now();
+        auto timeStepStartTime = system_clock::now();
 
         mps.stepForward();
-        timestep++;
+        timeStep++;
         time += settings.dt;
 
-        auto timestepEndTime = system_clock::now();
+        auto timeStepEndTime = system_clock::now();
 
         if (time >= settings.outputInterval * double(resultFileNum)) {
             saver.save(mps.particles, time, resultFileNum);
             resultFileNum++;
         }
-        timeStepReport(timestepStartTime, timestepEndTime, mps.getCourantNumber());
+        timeStepReport(timeStepStartTime, timeStepEndTime, mps.getCourantNumber());
     }
     simulationEndTime = system_clock::now();
 
@@ -64,15 +64,15 @@ void Simulation::startSimulation() {
     }
     auto logFileWriter = csv::make_csv_writer(logFile);
     logFileWriter << std::vector<std::string>{
-        "Timestep",
+        "Time Step",
         "Dt (s)",
         "Current Time (s)",
         "Finish Time (s)",
         "Elapsed Time (h:m:s)",
         "Elapsed Time (s)",
         "Remaining Time (h:m:s)",
-        "Average Time per Timestep (s)",
-        "Time for This Timestep (s)",
+        "Average Time per Time Step (s)",
+        "Time for This Time Step (s)",
         "Number of Output Files",
         "Courant Number"
     };
@@ -156,13 +156,13 @@ void Simulation::timeStepReport(
     auto elapsed = duration_cast<seconds>(timeStepEndTime - simulationStartTime);
 
     double average = 0;
-    if (timestep != 0) {
+    if (timeStep != 0) {
         average =
             duration_cast<milliseconds>(timeStepEndTime - simulationStartTime).count() /
-            (double) (1000 * timestep);
+            (double) (1000 * timeStep);
     }
 
-    seconds remain{int(((settings.finishTime - time) / time) * average * timestep)};
+    seconds remain{int(((settings.finishTime - time) / time) * average * timeStep)};
 
     auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
@@ -176,7 +176,7 @@ void Simulation::timeStepReport(
     cout << std::format(
                 "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
                 "ave={}s/step   last={}s/step   out={}files   Courant={}",
-                timestep,
+                timeStep,
                 settings.dt,
                 formattedTime,
                 settings.finishTime,
@@ -191,7 +191,7 @@ void Simulation::timeStepReport(
 
     auto logFileWriter = csv::make_csv_writer(logFile);
     logFileWriter << std::make_tuple(
-        timestep,
+        timeStep,
         settings.dt,
         formattedTime,
         settings.finishTime,
