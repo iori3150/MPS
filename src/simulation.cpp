@@ -46,7 +46,7 @@ void Simulation::run() {
 
         system_clock::time_point timestepEndTime = system_clock::now();
 
-        timeStepReport(timestepStartTime, timestepEndTime, mps.calcCourantNumber());
+        timeStepReport(timestepStartTime, timestepEndTime, mps.getCourantNumber());
         if (time >= settings.outputInterval * double(resultFileNum)) {
             saver.save(mps.particles, time, resultFileNum);
             resultFileNum++;

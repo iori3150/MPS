@@ -54,5 +54,5 @@ public:
 
     void stepForward();
 
-    double calcCourantNumber();
+    double getCourantNumber();
 };
