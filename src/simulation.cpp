@@ -31,11 +31,10 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    timestep = 0;
-
     saver.save(mps.particles, time, resultFileNum);
 
     simulationStartTime = system_clock::now();
+
     while (time <= settings.finishTime) {
         system_clock::time_point timestepStartTime = system_clock::now();
 
@@ -46,11 +45,11 @@ void Simulation::run() {
 
         system_clock::time_point timestepEndTime = system_clock::now();
 
-        timeStepReport(timestepStartTime, timestepEndTime, mps.getCourantNumber());
         if (time >= settings.outputInterval * double(resultFileNum)) {
             saver.save(mps.particles, time, resultFileNum);
             resultFileNum++;
         }
+        timeStepReport(timestepStartTime, timestepEndTime, mps.getCourantNumber());
     }
 
     endSimulation();
