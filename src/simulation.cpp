@@ -162,7 +162,7 @@ void Simulation::timeStepReport(
             (double) (1000 * timestep);
     }
 
-    auto remain{int(((settings.finishTime - time) / time) * average * timestep)};
+    seconds remain{int(((settings.finishTime - time) / time) * average * timestep)};
 
     auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
