@@ -16,7 +16,7 @@ public:
     };
 };
 
-enum class BoundaryCondition { GhostOrDummy, Surface, Inner };
+enum class BoundaryCondition { Ignored, Surface, Inner };
 
 class Particle {
 private:
@@ -32,6 +32,7 @@ public:
     std::vector<Neighbor> neighbors;
 
     BoundaryCondition boundaryCondition;
+    bool isDirichletBoundaryConnected;
 
     Particle(
         const int& id,

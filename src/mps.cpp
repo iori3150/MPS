@@ -2,11 +2,7 @@
 
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
-
-#define rep(i, a, b) for (int i = a; i < b; i++)
-#define DIRICHLET_BOUNDARY_IS_NOT_CONNECTED 0
-#define DIRICHLET_BOUNDARY_IS_CONNECTED 1
-#define DIRICHLET_BOUNDARY_IS_CHECKED 2
+#include <queue>
 
 using std::cerr;
 using std::cout;
@@ -24,9 +20,9 @@ double weight(const double& dist, const double& re) {
 MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     this->settings  = settings;
     this->particles = particles;
+
     this->sourceTerm.resize(particles.size());
-    this->coeffMatrix.resize(particles.size(), particles.size());
-    this->flagForCheckingBoundaryCondition.resize(particles.size());
+    this->coefficientMatrix.resize(particles.size(), particles.size());
     this->bucket =
         Bucket(settings.effectiveRadius.max, settings.domain, particles.size());
 
@@ -193,6 +189,7 @@ void MPS::calcPressure() {
     setBoundaryCondition();
     setSourceTerm();
     setMatrix();
+    ensureDirichletBoundaryConnection();
     solvePoissonEquation();
     removeNegativePressure();
     setMinimumPressure();
@@ -205,9 +202,10 @@ void MPS::setBoundaryCondition() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
-            pi.boundaryCondition = BoundaryCondition::GhostOrDummy;
+            pi.boundaryCondition = BoundaryCondition::Ignored;
 
-        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
+        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) <
+                   beta * n0) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {
@@ -234,119 +232,102 @@ void MPS::setSourceTerm() {
 }
 
 void MPS::setMatrix() {
-    coeffMatrix.setZero();
+    std::vector<Eigen::Triplet<double>> matrixTriplets;
 
     const double re     = settings.effectiveRadius.pressure;
     const double n0     = refValues.pressure.initialNumberDensity;
     const double lambda = refValues.pressure.lambda;
     const double a      = 2.0 * settings.dim / (n0 * lambda);
-#pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition != BoundaryCondition::Inner)
             continue;
 
+        double coefficient_ii = 0.0;
         for (auto& neighbor : pi.neighbors) {
             const Particle& pj = particles[neighbor.id];
             const double& dist = neighbor.distance;
 
-            if (pj.type == ParticleType::DummyWall)
+            if (pj.boundaryCondition == BoundaryCondition::Ignored)
                 continue;
 
             if (dist < re) {
-                double coef_ij = a * weight(dist, re) / pi.density;
-
-                coeffMatrix(pi.id, pj.id) = (-1.0 * coef_ij);
-                coeffMatrix(pi.id, pi.id) += coef_ij;
+                double coefficient_ij = a * weight(dist, re) / pi.density;
+                matrixTriplets.emplace_back(pi.id, pj.id, -1.0 * coefficient_ij);
+                coefficient_ii += coefficient_ij;
             }
         }
 
-        coeffMatrix(pi.id, pi.id) +=
-            (settings.compressibility) / (settings.dt * settings.dt);
+        coefficient_ii += settings.compressibility / (settings.dt * settings.dt);
+        matrixTriplets.emplace_back(pi.id, pi.id, coefficient_ii);
     }
 
-    exceptionalProcessingForBoundaryCondition();
+    coefficientMatrix.setFromTriplets(matrixTriplets.begin(), matrixTriplets.end());
 }
 
-void MPS::exceptionalProcessingForBoundaryCondition() {
-    // If tere is no Dirichlet boundary condition on the fluid,
-    // increase the diagonal terms of the matrix for an exception.
-    // This allows us to solve the matrix without Dirichlet boundary conditions.
-    checkBoundaryCondition();
-    increaseDiagonalTerm();
-}
-
-void MPS::solvePoissonEquation() {
-    Eigen::SparseMatrix<double> A = coeffMatrix.sparseView();
-    Eigen::BiCGSTAB<Eigen::SparseMatrix<double>> solver;
-    solver.compute(A);
-    Eigen::VectorXd pressures = solver.solve(sourceTerm);
+void MPS::ensureDirichletBoundaryConnection() {
     for (auto& pi : particles) {
-        pi.pressure = pressures[pi.id];
-    }
-}
-
-void MPS::checkBoundaryCondition() {
-#pragma omp parallel for
-    for (auto& pi : particles) {
-        if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy) {
-            flagForCheckingBoundaryCondition[pi.id] = -1;
-
-        } else if (pi.boundaryCondition == BoundaryCondition::Surface) {
-            flagForCheckingBoundaryCondition[pi.id] = DIRICHLET_BOUNDARY_IS_CONNECTED;
-
+        if (pi.boundaryCondition == BoundaryCondition::Surface) {
+            pi.isDirichletBoundaryConnected = true;
         } else {
-            flagForCheckingBoundaryCondition[pi.id] = DIRICHLET_BOUNDARY_IS_NOT_CONNECTED;
+            pi.isDirichletBoundaryConnected = false;
         }
     }
 
-    int count;
-    while (true) {
-        count = 0;
+    // Beginning from Surface particles, perform BFS (Breath First Search) to check
+    // Dirichlet boundary connection
+    for (auto& p : particles) {
+        if (p.boundaryCondition != BoundaryCondition::Surface)
+            continue;
 
-        rep(i, 0, particles.size()) {
-            if (flagForCheckingBoundaryCondition[i] != DIRICHLET_BOUNDARY_IS_CONNECTED)
-                continue;
+        // Create a queue for BFS and push the id of the Surface particle
+        std::queue<int> queue;
+        queue.push(p.id);
 
-            for (auto& neighbor : particles[i].neighbors) {
-                const Particle& pj = particles[neighbor.id];
+        // Loop through the queue until it's empty
+        while (!queue.empty()) {
+            const Particle& pi = particles[queue.front()];
+            queue.pop();
+
+            // Look through all neighbors of particle i
+            for (auto& neighbor : pi.neighbors) {
+                Particle& pj       = particles[neighbor.id];
                 const double& dist = neighbor.distance;
                 const double& re   = settings.effectiveRadius.pressure;
 
-                if (flagForCheckingBoundaryCondition[pj.id] !=
-                    DIRICHLET_BOUNDARY_IS_NOT_CONNECTED)
-                    continue;
-
-                if (dist < re)
-                    flagForCheckingBoundaryCondition[pj.id] =
-                        DIRICHLET_BOUNDARY_IS_CONNECTED;
+                // If the neighbor is witin the effective radius and not yet marked, mark
+                // it as connected and add to the queue
+                if (dist < re && !pj.isDirichletBoundaryConnected) {
+                    pj.isDirichletBoundaryConnected = true;
+                    queue.push(pj.id);
+                }
             }
-
-            flagForCheckingBoundaryCondition[i] = DIRICHLET_BOUNDARY_IS_CHECKED;
-            count++;
         }
-
-        if (count == 0)
-            break;
     }
 
-#pragma omp parallel for
-    rep(i, 0, particles.size()) {
-        if (flagForCheckingBoundaryCondition[i] == DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
-#pragma omp critical
-            {
-                cerr << "WARNING: There is no dirichlet boundary condition for particle "
-                     << i << endl;
-            }
+    for (auto& pi : particles) {
+        if (!pi.isDirichletBoundaryConnected &&
+            pi.boundaryCondition == BoundaryCondition::Inner) {
+            cerr << "WARNING: There is no Dirichlet boundary condition connected to the "
+                    "particle (id = "
+                 << pi.id << ")." << endl;
+
+            coefficientMatrix.coeffRef(pi.id, pi.id) *= 2.0;
         }
     }
 }
 
-void MPS::increaseDiagonalTerm() {
+void MPS::solvePoissonEquation() {
+    Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>> solver;
+    solver.compute(coefficientMatrix);
+    Eigen::VectorXd pressures = solver.solve(sourceTerm);
+    if (solver.info() != Eigen::Success) {
+        cout << "Pressure calculation failed." << endl;
+        std::exit(-1);
+    }
+
 #pragma omp parallel for
-    rep(i, 0, particles.size()) {
-        if (flagForCheckingBoundaryCondition[i] == DIRICHLET_BOUNDARY_IS_NOT_CONNECTED) {
-            coeffMatrix(i, i) *= 2.0;
-        }
+    for (auto& pi : particles) {
+        pi.pressure = pressures[pi.id];
     }
 }
 
@@ -362,7 +343,7 @@ void MPS::removeNegativePressure() {
 void MPS::setMinimumPressure() {
 #pragma omp parallel for
     for (auto& pi : particles) {
-        if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy)
+        if (pi.boundaryCondition == BoundaryCondition::Ignored)
             continue;
 
         pi.minimumPressure = pi.pressure;
