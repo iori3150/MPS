@@ -16,7 +16,7 @@ public:
     };
 };
 
-enum class BoundaryCondition { GhostOrDummy, Surface, Inner };
+enum class BoundaryCondition { Ignored, Surface, Inner };
 
 class Particle {
 private:

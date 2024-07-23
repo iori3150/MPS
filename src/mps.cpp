@@ -4,11 +4,6 @@
 #include <iostream>
 #include <queue>
 
-#define rep(i, a, b) for (int i = a; i < b; i++)
-#define DIRICHLET_BOUNDARY_IS_NOT_CONNECTED 0
-#define DIRICHLET_BOUNDARY_IS_CONNECTED 1
-#define DIRICHLET_BOUNDARY_IS_CHECKED 2
-
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -207,7 +202,7 @@ void MPS::setBoundaryCondition() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
-            pi.boundaryCondition = BoundaryCondition::GhostOrDummy;
+            pi.boundaryCondition = BoundaryCondition::Ignored;
 
         } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) <
                    beta * n0) {
@@ -252,7 +247,7 @@ void MPS::setMatrix() {
             const Particle& pj = particles[neighbor.id];
             const double& dist = neighbor.distance;
 
-            if (pj.boundaryCondition == BoundaryCondition::GhostOrDummy)
+            if (pj.boundaryCondition == BoundaryCondition::Ignored)
                 continue;
 
             if (dist < re) {
@@ -348,7 +343,7 @@ void MPS::removeNegativePressure() {
 void MPS::setMinimumPressure() {
 #pragma omp parallel for
     for (auto& pi : particles) {
-        if (pi.boundaryCondition == BoundaryCondition::GhostOrDummy)
+        if (pi.boundaryCondition == BoundaryCondition::Ignored)
             continue;
 
         pi.minimumPressure = pi.pressure;
