@@ -2,6 +2,7 @@
 
 #include "mps.hpp"
 #include "particle.hpp"
+#include "saver.hpp"
 #include "settings.hpp"
 
 #include <chrono>
@@ -22,6 +23,7 @@ private:
 
     int resultFileNum = 0;
     std::ofstream logFile;
+    Saver saver;
 
     void startSimulation();
     void endSimulation();

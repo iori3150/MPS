@@ -72,6 +72,8 @@ void Simulation::startSimulation() {
         "Number of Output Files",
         "Courant Number"
     };
+
+    saver = Saver("result");
 }
 
 void Simulation::endSimulation() {
@@ -197,43 +199,7 @@ void Simulation::write_data(
     );
 
     if (time >= settings.outputInterval * double(resultFileNum)) {
-        std::string filename =
-            std::format("result/prof/output_{:04d}.prof", resultFileNum);
-
-        std::ofstream outFile(filename);
-        if (!outFile.is_open()) {
-            throw std::runtime_error(
-                std::format("Could not open result file: {}", filename)
-            );
-        }
-
-        outFile << time << endl;
-        outFile << mps.particles.size() << endl;
-        for (auto& pi : mps.particles) {
-            if (pi.type == ParticleType::Ghost) {
-                continue;
-            }
-
-            outFile << std::format(
-                           "{:4d} {:2d} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} "
-                           "{:9.3f} "
-                           "{:8.3f}",
-                           pi.id,
-                           static_cast<int>(pi.type),
-                           pi.position.x(),
-                           pi.position.y(),
-                           pi.position.z(),
-                           pi.velocity.x(),
-                           pi.velocity.y(),
-                           pi.velocity.z(),
-                           pi.pressure,
-                           pi.numberDensity
-                       )
-                    << endl;
-        }
-
-        outFile.close();
-
+        saver.save(mps.particles, time, resultFileNum);
         resultFileNum++;
     }
 }
