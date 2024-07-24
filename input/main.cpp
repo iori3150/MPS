@@ -76,6 +76,8 @@ int main(int argc, char **argv) {
   Exporter exporter;
   exporter.toCsv(fs::path("input.csv"), particles, 0.0);
   exporter.toVtu(fs::path("input.vtu"), particles, 0.0);
+
+  std::cout << "Input file created successfully." << std::endl;
 }
 
 void check_fluid_range(std::vector<double> &x_range,

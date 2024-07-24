@@ -93,58 +93,59 @@ void Simulation::endSimulation() {
 }
 
 void Simulation::read_data(std::vector<Particle>& particles) {
-    std::ifstream file;
+    int particleDataHeaderRow = 3;
 
-    file.open(settings.inputProfPath);
-    if (!file) {
-        cout << "ERROR: There is no file named " << settings.inputProfPath << endl;
-        exit(1);
+    csv::CSVFormat metaDataFormat;
+    metaDataFormat.no_header();
+    csv::CSVReader metaDataReader(settings.inputProfPath, metaDataFormat);
+    for (auto& row : metaDataReader) {
+        if (metaDataReader.n_rows() + 1 == 1)
+            time = row[1].get<double>();
+
+        if (metaDataReader.n_rows() + 1 == particleDataHeaderRow - 1)
+            break;
     }
 
-    int numberOfParticles;
-    file >> time;
-    file >> numberOfParticles;
-
-    int id;
-    rep(i, 0, numberOfParticles) {
-        int type;
-        double x, y, z, u, v, w;
-        double pressure, n;
-
-        file >> id >> type;
-        file >> x >> y >> z;
-        file >> u >> v >> w;
-        file >> pressure >> n;
-
+    csv::CSVFormat particleDataFormat;
+    particleDataFormat.header_row(particleDataHeaderRow - 1);
+    csv::CSVReader particleDataReader(settings.inputProfPath, particleDataFormat);
+    for (auto& row : particleDataReader) {
         particles.push_back(Particle(
-            id,
-            static_cast<ParticleType>(type),
-            Eigen::Vector3d(x, y, z),
-            Eigen::Vector3d(u, v, w),
-            pressure,
+            row["ID"].get<int>(),
+            static_cast<ParticleType>(row["Type"].get<int>()),
+            Eigen::Vector3d(
+                row["Position.x (m)"].get<double>(),
+                row["Position.y (m)"].get<double>(),
+                row["Position.z (m)"].get<double>()
+            ),
+            Eigen::Vector3d(
+                row["Velocity.x (m/s)"].get<double>(),
+                row["Velocity.y (m/s)"].get<double>(),
+                row["Velocity.z (m/s)"].get<double>()
+            ),
+            row["Pressure (Pa)"].get<double>(),
             settings.density
         ));
     }
+    // std::ifstream file;
+    // file.open(settings.inputDataPath);
+    // if (!file) {
+    //     cout << "ERROR: There is no file named " << settings.inputDataPath << endl;
+    //     exit(1);
+    // }
 
-    file.close();
+    // std::string dummy_string;
+    // double xMin, xMax, yMin, yMax, zMin, zMax;
+    // file >> dummy_string >> xMin;
+    // file >> dummy_string >> xMax;
+    // file >> dummy_string >> yMin;
+    // file >> dummy_string >> yMax;
+    // file >> dummy_string >> zMin;
+    // file >> dummy_string >> zMax;
+    // settings.domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
 
-    file.open(settings.inputDataPath);
-    if (!file) {
-        cout << "ERROR: There is no file named " << settings.inputDataPath << endl;
-        exit(1);
-    }
-
-    std::string dummy_string;
-    double xMin, xMax, yMin, yMax, zMin, zMax;
-    file >> dummy_string >> xMin;
-    file >> dummy_string >> xMax;
-    file >> dummy_string >> yMin;
-    file >> dummy_string >> yMax;
-    file >> dummy_string >> zMin;
-    file >> dummy_string >> zMax;
-    settings.domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
-
-    file.close();
+    // file.close();
+    settings.domain = Domain(-0.1, 1.1, -0.1, 0.8, -1, 1);
 }
 
 void Simulation::timeStepReport(

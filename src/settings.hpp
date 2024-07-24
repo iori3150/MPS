@@ -34,12 +34,12 @@ public:
 struct Settings {
     // calculation conditions
     double dim                = 2;
-    double particleDistance   = 0.05;
-    double dt                 = 0.002;
+    double particleDistance   = 0.025;
+    double dt                 = 0.001;
     double outputInterval     = 0.05;
     double finishTime         = 2.0;
     double cflCondition       = 0.2;
-    std::string inputProfPath = "input/result/input.prof";
+    std::string inputProfPath = "input/input.csv";
     std::string inputDataPath = "input/result/input.data";
 
     // physical properties
