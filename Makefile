@@ -1,10 +1,12 @@
-# compiler
+# How to use ------------------------------------
+# make							-> compile in release mode
+# make MODE=debug		-> compile in debug mode
+# make clean 				-> remove the build directory
+# -----------------------------------------------
+
+# compiler, compiler flags, linker flags
 CXX = clang++
-
-# compiler flags
 CXXFLAGS = -std=c++20 -I eigen-3.4.0 -I csv-parser-2.3.0/single_include -fopenmp
-
-# linker flags
 LDFLAGS = -fopenmp
 
 # build mode: release (default) or debug
