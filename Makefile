@@ -1,18 +1,26 @@
-CXX = clang++ # compiler
-CXXFLAGS = -std=c++20 -O2 -I eigen-3.4.0 -I csv-parser-2.3.0/single_include -fopenmp # compiler flags
-LDFLAGS = -fopenmp # linker flags
+# compiler
+CXX = clang++
 
-# Define directories
+# compiler flags
+CXXFLAGS = -std=c++20 -I eigen-3.4.0 -I csv-parser-2.3.0/single_include -fopenmp
+
+# linker flags
+LDFLAGS = -fopenmp
+
+# build mode: release (default) or debug
+MODE ?= release
+ifeq ($(MODE),debug)
+	CXXFLAGS += -g -O0
+else
+	CXXFLAGS += -O2
+endif
+
 SRCDIR = src
 BUILDDIR = build
-
-TARGET = $(BUILDDIR)/main.exe
-
-# Source files
-SOURCES = $(wildcard $(SRCDIR)/*.cpp)
-
-# All object files
-OBJECTS = $(patsubst $(SRCDIR)/%.cpp,$(BUILDDIR)/%.o,$(SOURCES))
+BUILDMODEDIR = $(BUILDDIR)/$(MODE)
+TARGET = $(BUILDMODEDIR)/main.exe
+SOURCES = $(wildcard $(SRCDIR)/*.cpp) # Source files to compile
+OBJECTS = $(patsubst $(SRCDIR)/%.cpp,$(BUILDMODEDIR)/%.o,$(SOURCES)) # Object files to link
 
 # ---------------------
 # Target: all (default)
@@ -20,22 +28,21 @@ OBJECTS = $(patsubst $(SRCDIR)/%.cpp,$(BUILDDIR)/%.o,$(SOURCES))
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-
   # Create build directory if it doesn't exist
-	@powershell -Command "if (!(Test-Path '$(BUILDDIR)')) { New-Item -ItemType Directory -Path '$(BUILDDIR)' }"
+	@powershell -Command "if (!(Test-Path '$(BUILDMODEDIR)')) { New-Item -ItemType Directory -Path '$(BUILDMODEDIR)' }"
 
   # Link object files to create executable
-	$(CXX) -fopenmp $(OBJECTS) -o $@
+	$(CXX) $(LDFLAGS) $(OBJECTS) -o $@
 
 # Compile each source file into an object file
-$(OBJECTS): $(BUILDDIR)/%.o: $(SRCDIR)/%.cpp
+$(BUILDMODEDIR)/%.o: $(SRCDIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# -------------
+# ---------------------
 # Target: clean
-# -------------
+# ---------------------
 clean:
-	@powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item '$(BUILDDIR)/*' }"
+	@powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)/*' }"
 
 # Declare 'all' and 'clean' as phony targets
 .PHONY: all clean
