@@ -118,22 +118,20 @@ void Simulation::read_data(std::vector<Particle>& particles) {
 
     // Read particle data and create Particle objects
     for (auto& row : particleDataReader) {
-        int id          = row["ID"].get<int>();
-        double type     = row["Type"].get<int>();
-        double x        = row["Position.x (m)"].get<double>();
-        double y        = row["Position.y (m)"].get<double>();
-        double z        = row["Position.z (m)"].get<double>();
-        double u        = row["Velocity.x (m/s)"].get<double>();
-        double v        = row["Velocity.y (m/s)"].get<double>();
-        double z        = row["Velocity.z (m/s)"].get<double>();
-        double pressure = row["Pressure (Pa)"].get<double>();
+        int id      = row["ID"].get<int>();
+        double type = row["Type"].get<int>();
+        double x    = row["Position.x (m)"].get<double>();
+        double y    = row["Position.y (m)"].get<double>();
+        double z    = row["Position.z (m)"].get<double>();
+        double u    = row["Velocity.x (m/s)"].get<double>();
+        double v    = row["Velocity.y (m/s)"].get<double>();
+        double w    = row["Velocity.z (m/s)"].get<double>();
 
         particles.push_back(Particle(
             id,
             static_cast<ParticleType>(type),
             Eigen::Vector3d(x, y, z),
-            Eigen::Vector3d(u, v, z),
-            pressure,
+            Eigen::Vector3d(u, v, w),
             settings.density
         ));
     }
