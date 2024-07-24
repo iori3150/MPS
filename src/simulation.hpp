@@ -1,8 +1,8 @@
 #pragma once
 
+#include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
-#include "saver.hpp"
 #include "settings.hpp"
 
 #include <chrono>
@@ -16,11 +16,13 @@ public:
 private:
     MPS mps;
     Settings settings;
-    Saver saver;
 
     int timeStep = 0;
     double time  = 0.0;
     std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
+
+    Exporter exporter;
+    int outFileNum = 0;
 
     std::ofstream logFile;
 
@@ -33,5 +35,6 @@ private:
         const std::chrono::system_clock::time_point& timeStepEndTime,
         const double& courantNumber
     );
-    bool isTimeToSave();
+    bool isTimeToExport();
+    void exportParticles(const std::vector<Particle>& particles);
 };

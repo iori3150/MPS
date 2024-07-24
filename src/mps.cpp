@@ -43,7 +43,7 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     );
 }
 
-void MPS::stepForward(const bool isTimeToSave) {
+void MPS::stepForward(const bool isTimeToExport) {
     setNeighbors();
     calcGravity();
     calcViscosity();
@@ -57,7 +57,7 @@ void MPS::stepForward(const bool isTimeToSave) {
     calcPressureGradient();
     moveParticlesWithPressureGradient();
 
-    if (isTimeToSave) {
+    if (isTimeToExport) {
         setNumberDensityForDisplay();
     }
 }
@@ -204,8 +204,7 @@ void MPS::setBoundaryCondition() {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
             pi.boundaryCondition = BoundaryCondition::Ignored;
 
-        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) <
-                   beta * n0) {
+        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {

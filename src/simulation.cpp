@@ -20,6 +20,7 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
 using std::chrono::system_clock;
+namespace fs = std::filesystem;
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
 
@@ -31,16 +32,16 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    saver.save(mps.particles, time);
+    exportParticles(mps.particles);
 
     simulationStartTime = system_clock::now();
     while (time <= settings.finishTime) {
         auto timeStepStartTime = system_clock::now();
 
         time += settings.dt;
-        mps.stepForward(isTimeToSave());
-        if (isTimeToSave()) {
-            saver.save(mps.particles, time);
+        mps.stepForward(isTimeToExport());
+        if (isTimeToExport()) {
+            exportParticles(mps.particles);
         }
 
         auto timeStepEndTime = system_clock::now();
@@ -76,8 +77,6 @@ void Simulation::startSimulation() {
         "Number of Output Files",
         "Courant Number"
     };
-
-    saver = Saver("result/csv", "result/vtu");
 }
 
 void Simulation::endSimulation() {
@@ -184,7 +183,7 @@ void Simulation::timeStepReport(
                 formattedRemain,
                 formattedAverage,
                 formattedLast,
-                saver.numberOfFiles,
+                outFileNum,
                 formattedCourantNumber
             )
          << endl;
@@ -200,11 +199,27 @@ void Simulation::timeStepReport(
         formattedRemain,
         formattedAverage,
         formattedLast,
-        saver.numberOfFiles,
+        outFileNum,
         formattedCourantNumber
     );
 }
 
-bool Simulation::isTimeToSave() {
-    return time >= settings.outputInterval * double(saver.numberOfFiles);
+bool Simulation::isTimeToExport() {
+    return time >= settings.outputInterval * double(outFileNum);
+}
+
+void Simulation::exportParticles(const std::vector<Particle>& particles) {
+    exporter.toCsv(
+        fs::path(std::format("result/csv/output_{:04}.csv", outFileNum)),
+        particles,
+        time
+    );
+
+    exporter.toVtu(
+        fs::path(std::format("result/vtu/output_{:04}.vtu", outFileNum)),
+        particles,
+        time
+    );
+
+    outFileNum++;
 }
