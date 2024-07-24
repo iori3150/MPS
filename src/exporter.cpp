@@ -1,4 +1,4 @@
-#include "saver.hpp"
+#include "exporter.hpp"
 
 #include "csv.hpp"
 
@@ -9,25 +9,15 @@ using std::endl;
 using std::format;
 using std::make_tuple;
 
-Saver::Saver(const std::filesystem::path& outputDir) {
-    this->outputDir = outputDir;
-    std::filesystem::create_directory(outputDir / "csv");
-    std::filesystem::create_directory(outputDir / "vtu");
-}
-
-void Saver::save(const std::vector<Particle>& particles, const double& time) {
-    toCsv(particles, time);
-    toVtu(particles, time);
-    numberOfFiles++;
-}
-
-void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
-    std::string filename =
-        format("{}/csv/output_{:04}.csv", outputDir.string(), numberOfFiles);
-
-    std::ofstream outFile(filename);
+void Exporter::toCsv(
+    const std::filesystem::path& outFilePath,
+    const std::vector<Particle>& particles,
+    const double& time
+) {
+    std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        std::cerr << format("Could not open result file: {}", filename) << std::endl;
+        std::cerr << format("Could not open result file: {}", outFilePath.string())
+                  << std::endl;
         exit(-1);
     }
     auto writer = csv::make_csv_writer(outFile);
@@ -68,13 +58,15 @@ void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
     outFile.close();
 }
 
-void Saver::toVtu(const std::vector<Particle>& particles, const double& time) {
-    std::string filename =
-        format("{}/vtu/output_{:04}.vtu", outputDir.string(), numberOfFiles);
-
-    std::ofstream outFile(filename);
+void Exporter::toVtu(
+    const std::filesystem::path& outFilePath,
+    const std::vector<Particle>& particles,
+    const double& time
+) {
+    std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        std::cerr << format("Could not open result file: {}", filename) << std::endl;
+        std::cerr << format("Could not open result file: {}", outFilePath.string())
+                  << std::endl;
         exit(-1);
     }
 
@@ -180,7 +172,7 @@ void Saver::toVtu(const std::vector<Particle>& particles, const double& time) {
     outFile << "</VTKFile>" << endl;
 }
 
-void Saver::dataArrayBegin(
+void Exporter::dataArrayBegin(
     std::ofstream& outFile,
     const std::string& numberOfComponents,
     const std::string& type,
@@ -190,6 +182,6 @@ void Saver::dataArrayBegin(
             << type << "' Name='" << name << "' format='ascii'>" << endl;
 }
 
-void Saver::dataArrayEnd(std::ofstream& outFile) {
+void Exporter::dataArrayEnd(std::ofstream& outFile) {
     outFile << "</DataArray>" << endl;
 }

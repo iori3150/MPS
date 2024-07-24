@@ -1,4 +1,0 @@
-main\main.cpp:1:10: fatal error: 'bits/stdc++.h' file not found
-    1 | #include <bits/stdc++.h>
-      |          ^~~~~~~~~~~~~~~
-1 error generated.

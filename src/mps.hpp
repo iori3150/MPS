@@ -62,7 +62,7 @@ public:
     MPS() = default;
     MPS(const Settings& settings, std::vector<Particle>& particles);
 
-    void stepForward(const bool isTimeToSave);
+    void stepForward(const bool isTimeToExport);
 
     double getCourantNumber();
 };

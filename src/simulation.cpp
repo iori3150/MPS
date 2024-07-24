@@ -20,6 +20,7 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
 using std::chrono::system_clock;
+namespace fs = std::filesystem;
 
 #define rep(i, a, b) for (int i = a; i < b; i++)
 
@@ -31,16 +32,16 @@ void Simulation::run() {
     read_data(particles);
     mps = MPS(settings, particles);
 
-    saver.save(mps.particles, time);
+    exportParticles(mps.particles);
 
     simulationStartTime = system_clock::now();
     while (time <= settings.finishTime) {
         auto timeStepStartTime = system_clock::now();
 
         time += settings.dt;
-        mps.stepForward(isTimeToSave());
-        if (isTimeToSave()) {
-            saver.save(mps.particles, time);
+        mps.stepForward(isTimeToExport());
+        if (isTimeToExport()) {
+            exportParticles(mps.particles);
         }
 
         auto timeStepEndTime = system_clock::now();
@@ -58,7 +59,8 @@ void Simulation::startSimulation() {
 
     logFile.open("result/log.csv");
     if (!logFile.is_open()) {
-        cout << "ERROR: Could not open the log file: " << "result/log.csv" << std::endl;
+        cout << "ERROR: Could not open the log file: "
+             << "result/log.csv" << std::endl;
         exit(-1);
     }
     auto logFileWriter = csv::make_csv_writer(logFile);
@@ -75,8 +77,6 @@ void Simulation::startSimulation() {
         "Number of Output Files",
         "Courant Number"
     };
-
-    saver = Saver("result");
 }
 
 void Simulation::endSimulation() {
@@ -93,58 +93,67 @@ void Simulation::endSimulation() {
 }
 
 void Simulation::read_data(std::vector<Particle>& particles) {
-    std::ifstream file;
+    int particleDataHeaderRow = 3;
 
-    file.open(settings.inputProfPath);
-    if (!file) {
-        cout << "ERROR: There is no file named " << settings.inputProfPath << endl;
-        exit(1);
+    // Set up CSV format for meta data
+    csv::CSVFormat metaDataFormat;
+    metaDataFormat.no_header();
+    csv::CSVReader metaDataReader(settings.inputProfPath, metaDataFormat);
+
+    // Read meta data
+    for (auto& row : metaDataReader) {
+        // Get the time from the first row
+        if (metaDataReader.n_rows() + 1 == 1)
+            time = row[1].get<double>();
+
+        // Stop reading after the row before the particle data header
+        if (metaDataReader.n_rows() + 1 == particleDataHeaderRow - 1)
+            break;
     }
 
-    int numberOfParticles;
-    file >> time;
-    file >> numberOfParticles;
+    // Set up CSV format for particle data
+    csv::CSVFormat particleDataFormat;
+    particleDataFormat.header_row(particleDataHeaderRow - 1);
+    csv::CSVReader particleDataReader(settings.inputProfPath, particleDataFormat);
 
-    int id;
-    rep(i, 0, numberOfParticles) {
-        int type;
-        double x, y, z, u, v, w;
-        double pressure, n;
-
-        file >> id >> type;
-        file >> x >> y >> z;
-        file >> u >> v >> w;
-        file >> pressure >> n;
+    // Read particle data and create Particle objects
+    for (auto& row : particleDataReader) {
+        int id      = row["ID"].get<int>();
+        double type = row["Type"].get<int>();
+        double x    = row["Position.x (m)"].get<double>();
+        double y    = row["Position.y (m)"].get<double>();
+        double z    = row["Position.z (m)"].get<double>();
+        double u    = row["Velocity.x (m/s)"].get<double>();
+        double v    = row["Velocity.y (m/s)"].get<double>();
+        double w    = row["Velocity.z (m/s)"].get<double>();
 
         particles.push_back(Particle(
             id,
             static_cast<ParticleType>(type),
             Eigen::Vector3d(x, y, z),
             Eigen::Vector3d(u, v, w),
-            pressure,
             settings.density
         ));
     }
+    // std::ifstream file;
+    // file.open(settings.inputDataPath);
+    // if (!file) {
+    //     cout << "ERROR: There is no file named " << settings.inputDataPath << endl;
+    //     exit(1);
+    // }
 
-    file.close();
+    // std::string dummy_string;
+    // double xMin, xMax, yMin, yMax, zMin, zMax;
+    // file >> dummy_string >> xMin;
+    // file >> dummy_string >> xMax;
+    // file >> dummy_string >> yMin;
+    // file >> dummy_string >> yMax;
+    // file >> dummy_string >> zMin;
+    // file >> dummy_string >> zMax;
+    // settings.domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
 
-    file.open(settings.inputDataPath);
-    if (!file) {
-        cout << "ERROR: There is no file named " << settings.inputDataPath << endl;
-        exit(1);
-    }
-
-    std::string dummy_string;
-    double xMin, xMax, yMin, yMax, zMin, zMax;
-    file >> dummy_string >> xMin;
-    file >> dummy_string >> xMax;
-    file >> dummy_string >> yMin;
-    file >> dummy_string >> yMax;
-    file >> dummy_string >> zMin;
-    file >> dummy_string >> zMax;
-    settings.domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
-
-    file.close();
+    // file.close();
+    settings.domain = Domain(-0.1, 1.1, -0.1, 0.8, -1, 1);
 }
 
 void Simulation::timeStepReport(
@@ -183,7 +192,7 @@ void Simulation::timeStepReport(
                 formattedRemain,
                 formattedAverage,
                 formattedLast,
-                saver.numberOfFiles,
+                outFileNum,
                 formattedCourantNumber
             )
          << endl;
@@ -199,11 +208,27 @@ void Simulation::timeStepReport(
         formattedRemain,
         formattedAverage,
         formattedLast,
-        saver.numberOfFiles,
+        outFileNum,
         formattedCourantNumber
     );
 }
 
-bool Simulation::isTimeToSave() {
-    return time >= settings.outputInterval * double(saver.numberOfFiles);
+bool Simulation::isTimeToExport() {
+    return time >= settings.outputInterval * double(outFileNum);
+}
+
+void Simulation::exportParticles(const std::vector<Particle>& particles) {
+    exporter.toCsv(
+        fs::path(std::format("result/csv/output_{:04}.csv", outFileNum)),
+        particles,
+        time
+    );
+
+    exporter.toVtu(
+        fs::path(std::format("result/vtu/output_{:04}.vtu", outFileNum)),
+        particles,
+        time
+    );
+
+    outFileNum++;
 }
