@@ -41,6 +41,10 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
         settings.particleDistance,
         settings.effectiveRadius.surfaceDetection
     );
+
+    // Set the particle number density at the beginning so that we can check if the
+    // initial particle placement is appropriate.
+    setNumberDensityForDisplay();
 }
 
 void MPS::stepForward(const bool isTimeToExport) {
