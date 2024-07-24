@@ -1,8 +1,11 @@
 #include "mps.hpp"
 
+#include "csv.hpp"
+
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
 #include <queue>
+
 
 using std::cerr;
 using std::cout;
@@ -18,8 +21,8 @@ double weight(const double& dist, const double& re) {
 }
 
 MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
-    this->settings  = settings;
-    this->particles = particles;
+    this->settings = settings;
+    importInitialCondition();
 
     this->sourceTerm.resize(particles.size());
     this->coefficientMatrix.resize(particles.size(), particles.size());
@@ -45,6 +48,51 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     // Set the particle number density at the beginning so that we can check if the
     // initial particle placement is appropriate.
     setNumberDensityForDisplay();
+}
+
+void MPS::importInitialCondition() {
+    int particleDataHeaderRow = 3;
+
+    // Set up CSV format for meta data
+    csv::CSVFormat metaDataFormat;
+    metaDataFormat.no_header();
+    csv::CSVReader metaDataReader(settings.inputProfPath, metaDataFormat);
+
+    // Read meta data
+    for (auto& row : metaDataReader) {
+        // Get the time from the first row
+        if (metaDataReader.n_rows() + 1 == 1)
+            time = row[1].get<double>();
+
+        // Stop reading after the row before the particle data header
+        if (metaDataReader.n_rows() + 1 == particleDataHeaderRow - 1)
+            break;
+    }
+
+    // Set up CSV format for particle data
+    csv::CSVFormat particleDataFormat;
+    particleDataFormat.header_row(particleDataHeaderRow - 1);
+    csv::CSVReader particleDataReader(settings.inputProfPath, particleDataFormat);
+
+    // Read particle data and create Particle objects
+    for (auto& row : particleDataReader) {
+        int id      = row["ID"].get<int>();
+        double type = row["Type"].get<int>();
+        double x    = row["Position.x (m)"].get<double>();
+        double y    = row["Position.y (m)"].get<double>();
+        double z    = row["Position.z (m)"].get<double>();
+        double u    = row["Velocity.x (m/s)"].get<double>();
+        double v    = row["Velocity.y (m/s)"].get<double>();
+        double w    = row["Velocity.z (m/s)"].get<double>();
+
+        particles.push_back(Particle(
+            id,
+            static_cast<ParticleType>(type),
+            Eigen::Vector3d(x, y, z),
+            Eigen::Vector3d(u, v, w),
+            settings.density
+        ));
+    }
 }
 
 void MPS::stepForward(const bool isTimeToExport) {

@@ -75,5 +75,5 @@ struct Settings {
     // matrix
     double compressibility = 0.45e-9;
 
-    Domain domain;
+    Domain domain = Domain(-0.1, 1.1, -0.1, 0.8, -1, 1);
 };

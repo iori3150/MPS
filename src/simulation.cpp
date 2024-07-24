@@ -26,11 +26,7 @@ namespace fs = std::filesystem;
 void Simulation::run() {
     startSimulation();
 
-    std::vector<Particle> particles;
-
-    read_data(particles);
-    mps = MPS(settings, particles);
-
+    mps = MPS(settings);
     exportParticles(mps.particles);
 
     simulationStartTime = system_clock::now();
@@ -134,25 +130,6 @@ void Simulation::read_data(std::vector<Particle>& particles) {
             settings.density
         ));
     }
-    // std::ifstream file;
-    // file.open(settings.inputDataPath);
-    // if (!file) {
-    //     cout << "ERROR: There is no file named " << settings.inputDataPath << endl;
-    //     exit(1);
-    // }
-
-    // std::string dummy_string;
-    // double xMin, xMax, yMin, yMax, zMin, zMax;
-    // file >> dummy_string >> xMin;
-    // file >> dummy_string >> xMax;
-    // file >> dummy_string >> yMin;
-    // file >> dummy_string >> yMax;
-    // file >> dummy_string >> zMin;
-    // file >> dummy_string >> zMax;
-    // settings.domain = Domain(xMin, xMax, yMin, yMax, zMin, zMax);
-
-    // file.close();
-    settings.domain = Domain(-0.1, 1.1, -0.1, 0.8, -1, 1);
 }
 
 void Simulation::timeStepReport(
