@@ -22,8 +22,6 @@ using std::chrono::seconds;
 using std::chrono::system_clock;
 namespace fs = std::filesystem;
 
-#define rep(i, a, b) for (int i = a; i < b; i++)
-
 void Simulation::run() {
     startSimulation();
 
