@@ -2,6 +2,7 @@
 
 #include "bucket.hpp"
 #include "csv.hpp"
+#include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
@@ -216,12 +217,12 @@ bool Simulation::isTimeToExport() {
 }
 
 void Simulation::exportParticles(const std::vector<Particle>& particles) {
+    Exporter exporter;
     exporter.toCsv(
         fs::path(std::format("result/csv/output_{:04}.csv", outFileNum)),
         particles,
         time
     );
-
     exporter.toVtu(
         fs::path(std::format("result/vtu/output_{:04}.vtu", outFileNum)),
         particles,

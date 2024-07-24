@@ -1,6 +1,5 @@
 #pragma once
 
-#include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
 #include "settings.hpp"
@@ -21,7 +20,6 @@ private:
     double time  = 0.0;
     std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
 
-    Exporter exporter;
     int outFileNum = 0;
 
     std::ofstream logFile;
