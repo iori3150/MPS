@@ -58,7 +58,8 @@ void Simulation::startSimulation() {
 
     logFile.open("result/log.csv");
     if (!logFile.is_open()) {
-        cout << "ERROR: Could not open the log file: " << "result/log.csv" << std::endl;
+        cout << "ERROR: Could not open the log file: "
+             << "result/log.csv" << std::endl;
         exit(-1);
     }
     auto logFileWriter = csv::make_csv_writer(logFile);
@@ -76,7 +77,7 @@ void Simulation::startSimulation() {
         "Courant Number"
     };
 
-    saver = Saver("result");
+    saver = Saver("result/csv", "result/vtu");
 }
 
 void Simulation::endSimulation() {

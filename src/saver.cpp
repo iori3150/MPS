@@ -9,10 +9,11 @@ using std::endl;
 using std::format;
 using std::make_tuple;
 
-Saver::Saver(const std::filesystem::path& outputDir) {
-    this->outputDir = outputDir;
-    std::filesystem::create_directory(outputDir / "csv");
-    std::filesystem::create_directory(outputDir / "vtu");
+Saver::Saver(const std::filesystem::path& csvDir, const std::filesystem::path& vtuDir) {
+    this->csvDir = csvDir;
+    this->vtuDir = vtuDir;
+    std::filesystem::create_directory(csvDir);
+    std::filesystem::create_directory(vtuDir);
 }
 
 void Saver::save(const std::vector<Particle>& particles, const double& time) {
@@ -22,8 +23,7 @@ void Saver::save(const std::vector<Particle>& particles, const double& time) {
 }
 
 void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
-    std::string filename =
-        format("{}/csv/output_{:04}.csv", outputDir.string(), numberOfFiles);
+    std::string filename = format("{}/output_{:04}.csv", csvDir.string(), numberOfFiles);
 
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {
@@ -69,8 +69,7 @@ void Saver::toCsv(const std::vector<Particle>& particles, const double& time) {
 }
 
 void Saver::toVtu(const std::vector<Particle>& particles, const double& time) {
-    std::string filename =
-        format("{}/vtu/output_{:04}.vtu", outputDir.string(), numberOfFiles);
+    std::string filename = format("{}/output_{:04}.vtu", vtuDir.string(), numberOfFiles);
 
     std::ofstream outFile(filename);
     if (!outFile.is_open()) {

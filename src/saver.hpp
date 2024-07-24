@@ -10,9 +10,12 @@ public:
     int numberOfFiles = 0;
 
     Saver() = default;
-    Saver(const std::filesystem::path& outputDir);
+    Saver(const std::filesystem::path& csvDir, const std::filesystem::path& vtuDir);
 
     void save(const std::vector<Particle>& particles, const double& time);
+
+private:
+    std::filesystem::path csvDir, vtuDir;
     void toCsv(const std::vector<Particle>& particles, const double& time);
     void toVtu(const std::vector<Particle>& particles, const double& time);
     void dataArrayBegin(
@@ -22,7 +25,4 @@ public:
         const std::string& name
     );
     void dataArrayEnd(std::ofstream& outFile);
-
-private:
-    std::filesystem::path outputDir;
 };
