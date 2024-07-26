@@ -6,7 +6,6 @@
 #include <iostream>
 #include <queue>
 
-
 using std::cerr;
 using std::cout;
 using std::endl;
@@ -20,9 +19,9 @@ double weight(const double& dist, const double& re) {
     return w;
 }
 
-MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
+MPS::MPS(const Settings& settings, double& time) {
     this->settings = settings;
-    importInitialCondition();
+    importInitialCondition(time);
 
     this->sourceTerm.resize(particles.size());
     this->coefficientMatrix.resize(particles.size(), particles.size());
@@ -50,7 +49,7 @@ MPS::MPS(const Settings& settings, std::vector<Particle>& particles) {
     setNumberDensityForDisplay();
 }
 
-void MPS::importInitialCondition() {
+void MPS::importInitialCondition(double& time) {
     int particleDataHeaderRow = 3;
 
     // Set up CSV format for meta data

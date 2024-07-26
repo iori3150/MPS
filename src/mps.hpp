@@ -21,6 +21,7 @@ public:
 
 class MPS {
 private:
+    std::vector<Particle> particles;
     Settings settings;
     Bucket bucket;
 
@@ -33,7 +34,7 @@ private:
     Eigen::SparseMatrix<double, Eigen::RowMajor> coefficientMatrix;
     Eigen::VectorXd sourceTerm;
 
-    void importInitialCondition();
+    void importInitialCondition(double& time);
 
     void calcGravity();
     void calcViscosity();
@@ -62,7 +63,7 @@ public:
     std::vector<Particle> particles;
 
     MPS() = default;
-    MPS(const Settings& settings);
+    MPS(const Settings& settings, double& time);
 
     void stepForward(const bool isTimeToExport);
 
