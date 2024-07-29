@@ -21,7 +21,6 @@ public:
 
 class MPS {
 private:
-    std::vector<Particle> particles;
     Settings settings;
     Bucket bucket;
 
