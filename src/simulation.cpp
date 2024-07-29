@@ -107,9 +107,9 @@ void Simulation::timeStepReport(
     auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
     auto formattedTime          = std::format("{:.3f}", time);
-    auto formattedElapsed       = std::format("{:%Hh %Mm %Ss}", elapsed);
+    auto formattedElapsed       = std::format("{:%H:%M:%S}", elapsed);
     auto formattedAverage       = std::format("{:.3f}", average);
-    auto formattedRemain        = std::format("{:%Hh %Mm %Ss}", remain);
+    auto formattedRemain        = std::format("{:%H:%M:%S}", remain);
     auto formattedLast          = std::format("{:%S}", last);
     auto formattedCourantNumber = std::format("{:.2f}", courantNumber);
 
