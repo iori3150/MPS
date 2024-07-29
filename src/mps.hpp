@@ -33,7 +33,7 @@ private:
     Eigen::SparseMatrix<double, Eigen::RowMajor> coefficientMatrix;
     Eigen::VectorXd sourceTerm;
 
-    void importInitialCondition(double& time);
+    double importInitialCondition(); // Import initial condition and return initial time
 
     void calcGravity();
     void calcViscosity();
@@ -62,9 +62,9 @@ public:
     std::vector<Particle> particles;
 
     MPS() = default;
-    MPS(const Settings& settings, double& time);
+    MPS(const Settings& settings);
 
+    double initialize(); // Initialize particles and return initial time
     void stepForward(const bool isTimeToExport);
-
     double getCourantNumber();
 };

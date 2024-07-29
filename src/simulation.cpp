@@ -26,7 +26,8 @@ namespace fs = std::filesystem;
 void Simulation::run() {
     startSimulation();
 
-    mps = MPS(settings, time);
+    mps  = MPS(settings);
+    time = mps.initialize();
     exportParticles(mps.particles);
 
     simulationStartTime = system_clock::now();

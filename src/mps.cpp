@@ -19,14 +19,8 @@ double weight(const double& dist, const double& re) {
     return w;
 }
 
-MPS::MPS(const Settings& settings, double& time) {
+MPS::MPS(const Settings& settings) {
     this->settings = settings;
-    importInitialCondition(time);
-
-    this->sourceTerm.resize(particles.size());
-    this->coefficientMatrix.resize(particles.size(), particles.size());
-    this->bucket =
-        Bucket(settings.effectiveRadius.max, settings.domain, particles.size());
 
     this->refValues.pressure = RefValues(
         settings.dim,
@@ -43,14 +37,11 @@ MPS::MPS(const Settings& settings, double& time) {
         settings.particleDistance,
         settings.effectiveRadius.surfaceDetection
     );
-
-    // Set the particle number density at the beginning so that we can check if the
-    // initial particle placement is appropriate.
-    setNumberDensityForDisplay();
 }
 
-void MPS::importInitialCondition(double& time) {
+double MPS::importInitialCondition() {
     int particleDataHeaderRow = 3;
+    double initialTime;
 
     // Set up CSV format for meta data
     csv::CSVFormat metaDataFormat;
@@ -61,7 +52,7 @@ void MPS::importInitialCondition(double& time) {
     for (auto& row : metaDataReader) {
         // Get the time from the first row
         if (metaDataReader.n_rows() + 1 == 1)
-            time = row[1].get<double>();
+            initialTime = row[1].get<double>();
 
         // Stop reading after the row before the particle data header
         if (metaDataReader.n_rows() + 1 == particleDataHeaderRow - 1)
@@ -92,6 +83,23 @@ void MPS::importInitialCondition(double& time) {
             settings.density
         ));
     }
+
+    return initialTime;
+}
+
+double MPS::initialize() {
+    double initialTime = importInitialCondition();
+
+    this->sourceTerm.resize(particles.size());
+    this->coefficientMatrix.resize(particles.size(), particles.size());
+    this->bucket =
+        Bucket(settings.effectiveRadius.max, settings.domain, particles.size());
+
+    // Set the particle number density at the beginning so that we can check if the
+    // initial particle placement is appropriate.
+    setNumberDensityForDisplay();
+
+    return initialTime;
 }
 
 void MPS::stepForward(const bool isTimeToExport) {
