@@ -14,7 +14,6 @@ public:
 
 private:
     MPS mps;
-    Settings settings;
 
     int timeStep = 0;
     double time  = 0.0;

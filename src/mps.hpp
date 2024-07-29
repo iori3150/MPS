@@ -61,9 +61,6 @@ private:
 public:
     std::vector<Particle> particles;
 
-    MPS() = default;
-    MPS(const Settings& settings);
-
     double initialize(); // Initialize particles and return initial time
     void stepForward(const bool isTimeToExport);
     double getCourantNumber();

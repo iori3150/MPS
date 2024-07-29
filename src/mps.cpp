@@ -19,8 +19,8 @@ double weight(const double& dist, const double& re) {
     return w;
 }
 
-MPS::MPS(const Settings& settings) {
-    this->settings = settings;
+MPS::MPS() {
+    settings.load();
 
     this->refValues.pressure = RefValues(
         settings.dim,

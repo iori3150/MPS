@@ -31,20 +31,27 @@ public:
     }
 };
 
-struct Settings {
-    // calculation conditions
-    double dim                = 2;
-    double particleDistance   = 0.025;
-    double dt                 = 0.001;
-    double outputInterval     = 0.05;
-    double finishTime         = 2.0;
-    double cflCondition       = 0.2;
-    std::string inputProfPath = "input/input.csv";
-    std::string inputDataPath = "input/result/input.data";
+class Settings{
+private:
+  // computational conditions
+    double dim;
+    double particleDistance;
+    double dt; 
+    double finishTime;
+    double outputPeriod;
+    double cflCondition;
+    std::string inputProfPath                  = "input/input.csv";
+    std::string inputDataPath                  = "input/result/input.data";
+
+// domain
+  Domain domain;
 
     // physical properties
-    double kinematicViscosity = 1.0e-06;
-    double density            = 1000.0;
+    double density      ;
+    double kinematicViscosity;
+
+  // gravity
+  Eigen::Vector3d gravity;
 
     // effective radius
     struct {
@@ -52,28 +59,19 @@ struct Settings {
         double viscosity;
         double surfaceDetection;
         double max;
-    } effectiveRadius{
-        3.1 * particleDistance,
-        3.1 * particleDistance,
-        3.1 * particleDistance,
-        3.1 * particleDistance
-    };
+  } effectiveRadius;
 
-    // gravity
-    Eigen::Vector3d gravity = Eigen::Vector3d(0.0, -9.8, 0.0);
+  // surface detection
+  double thresholdForSurfaceDetection;
 
-    // collision
-    double collisionDistance        = 0.5 * particleDistance;
-    double coefficientOfRestitution = 0.2;
+  // pressure calculation
+  double compressibility;
+  double relaxationCoefficientForPressure;
 
-    // boundary condition
-    double thresholdForSurfaceDetection = 0.97;
+  // collision
+  double collisionDistance;
+  double coefficientOfRestitution;
 
-    // source term
-    double relaxationCoefficientForPressure = 0.2;
-
-    // matrix
-    double compressibility = 0.45e-9;
-
-    Domain domain = Domain(-0.1, 1.1, -0.1, 0.8, -1, 1);
+public:
+    void load();
 };
