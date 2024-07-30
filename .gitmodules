@@ -4,3 +4,6 @@
 [submodule "csv-parser-2.3.0"]
 	path = csv-parser-2.3.0
 	url = https://github.com/vincentlaucsb/csv-parser.git
+[submodule "yaml-cpp-0.8.0"]
+	path = yaml-cpp-0.8.0
+	url = https://github.com/jbeder/yaml-cpp.git
