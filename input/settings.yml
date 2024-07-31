@@ -35,6 +35,6 @@ relaxation coefficient for pressure: 0.2
 # collision
 collision distance ratio: 0.5 # ratio to particle distance
 coefficient of restitution: 0.2
+
 # i/o
-# relative path from the directory where this file is located
-# particlesPath: ./input.prof
+inputCsvPath: ./input.csv # relative path to this settings.yml
