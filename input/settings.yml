@@ -1,40 +1,40 @@
 # computational conditions
 dim: 2
-particleDistance: 0.025
+particle distance: 0.025
 dt: 0.001
-finishTime: 2.0
-outputInterval: 0.05
-cflCondition: 0.3
+finish time: 2.0
+output interval: 0.05
+CFL condition: 0.3
 # numPhysicalCores: 4
 
 # domain
-domainRangeX: [-0.1, 1.1]
-domainRangeY: [-0.1, 2.0]
-domainRangeZ: [0.0, 0.0]
+domain range X: [-0.1, 1.1]
+domain range Y: [-0.1, 2.0]
+domain range Z: [0.0, 0.0]
 
 # physical properties
 density: 1000.0
-kinematicViscosity: 1.0e-06 # If we don't write to one decimal place, it will be recognized as a string of characters.
+kinematic viscosity: 1.0e-06 # If we don't write to one decimal place, it will be recognized as a string of characters.
 
 # gravity
 gravity: [0.0, -9.8, 0.0]
 
 # effective radius (ratio to the particle distance)
-effectiveRadiusRatio:
+effective radius ratio:
   pressure: 3.1
   viscosity: 3.1
-  surfaceDetection: 3.1
+  surface detection: 3.1
 
 # surface detection
-thresholdForSurfaceDetection: 0.97
+threshold for surface detection: 0.97
 
 # pressure calculation
 compressibility: 0.45e-09
-relaxationCoefficientForPressure: 0.2
+relaxation coefficient for pressure: 0.2
 
 # collision
-collisionDistanceRatio: 0.5 # ratio to particle distance
-coefficientOfRestitution: 0.2
+collision distance ratio: 0.5 # ratio to particle distance
+coefficient of restitution: 0.2
 # i/o
 # relative path from the directory where this file is located
 # particlesPath: ./input.prof
