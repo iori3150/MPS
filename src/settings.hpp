@@ -41,8 +41,7 @@ public:
     double finishTime;
     double outputInterval;
     double cflCondition;
-    std::string inputProfPath = "input/input.csv";
-    std::string inputDataPath = "input/result/input.data";
+    std::string inputCsvPath = "input/input.csv";
 
     // domain
     Domain domain;

@@ -46,7 +46,7 @@ double MPS::importInitialCondition() {
     // Set up CSV format for meta data
     csv::CSVFormat metaDataFormat;
     metaDataFormat.no_header();
-    csv::CSVReader metaDataReader(settings.inputProfPath, metaDataFormat);
+    csv::CSVReader metaDataReader(settings.inputCsvPath, metaDataFormat);
 
     // Read meta data
     int rowNumber = 1;
@@ -65,7 +65,7 @@ double MPS::importInitialCondition() {
     // Set up CSV format for particle data
     csv::CSVFormat particleDataFormat;
     particleDataFormat.header_row(particleDataHeaderRow - 1);
-    csv::CSVReader particleDataReader(settings.inputProfPath, particleDataFormat);
+    csv::CSVReader particleDataReader(settings.inputCsvPath, particleDataFormat);
 
     // Read particle data and create Particle objects
     for (auto& row : particleDataReader) {
