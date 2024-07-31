@@ -5,7 +5,6 @@
 #include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
-#include "settings.hpp"
 
 #include <Eigen/Dense>
 #include <format>
@@ -26,15 +25,15 @@ namespace fs = std::filesystem;
 void Simulation::run() {
     startSimulation();
 
-    mps  = MPS(settings);
+    mps  = MPS();
     time = mps.initialize();
     exportParticles(mps.particles);
 
     simulationStartTime = system_clock::now();
-    while (time <= settings.finishTime) {
+    while (time <= mps.settings.finishTime) {
         auto timeStepStartTime = system_clock::now();
 
-        time += settings.dt;
+        time += mps.settings.dt;
         mps.stepForward(isTimeToExport());
         if (isTimeToExport()) {
             exportParticles(mps.particles);
@@ -102,7 +101,7 @@ void Simulation::timeStepReport(
             (double) (1000 * timeStep);
     }
 
-    seconds remain{int(((settings.finishTime - time) / time) * average * timeStep)};
+    seconds remain{int(((mps.settings.finishTime - time) / time) * average * timeStep)};
 
     auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
@@ -117,9 +116,9 @@ void Simulation::timeStepReport(
                 "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
                 "ave={}s/step   last={}s/step   out={}files   Courant={}",
                 timeStep,
-                settings.dt,
+                mps.settings.dt,
                 formattedTime,
-                settings.finishTime,
+                mps.settings.finishTime,
                 formattedElapsed,
                 formattedRemain,
                 formattedAverage,
@@ -132,9 +131,9 @@ void Simulation::timeStepReport(
     auto logFileWriter = csv::make_csv_writer(logFile);
     logFileWriter << std::make_tuple(
         timeStep,
-        settings.dt,
+        mps.settings.dt,
         formattedTime,
-        settings.finishTime,
+        mps.settings.finishTime,
         formattedElapsed,
         elapsed.count(),
         formattedRemain,
@@ -146,7 +145,7 @@ void Simulation::timeStepReport(
 }
 
 bool Simulation::isTimeToExport() {
-    return time >= settings.outputInterval * double(outFileNum);
+    return time >= mps.settings.outputInterval * double(outFileNum);
 }
 
 void Simulation::exportParticles(const std::vector<Particle>& particles) {

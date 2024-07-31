@@ -2,7 +2,6 @@
 
 #include "mps.hpp"
 #include "particle.hpp"
-#include "settings.hpp"
 
 #include <chrono>
 #include <fstream>
@@ -14,7 +13,6 @@ public:
 
 private:
     MPS mps;
-    Settings settings;
 
     int timeStep = 0;
     double time  = 0.0;
