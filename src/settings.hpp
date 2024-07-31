@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <filesystem>
 #include <fstream>
 
 class Domain {
@@ -41,7 +42,6 @@ public:
     double finishTime;
     double outputInterval;
     double cflCondition;
-    std::string inputCsvPath = "input/input.csv";
 
     // domain
     Domain domain;
@@ -71,6 +71,9 @@ public:
     // collision
     double collisionDistance;
     double coefficientOfRestitution;
+
+    // io
+    std::filesystem::path inputCsvPath;
 
     void load();
 };

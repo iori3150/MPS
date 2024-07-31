@@ -40,13 +40,20 @@ MPS::MPS() {
 }
 
 double MPS::importInitialCondition() {
+    if (!std::filesystem::exists(settings.inputCsvPath)) {
+        cout << "ERROR: Input file does not exist in the specified path: "
+             << settings.inputCsvPath << endl
+             << endl;
+        std::exit(-1);
+    }
+
     int particleDataHeaderRow = 3;
     double initialTime;
 
     // Set up CSV format for meta data
     csv::CSVFormat metaDataFormat;
     metaDataFormat.no_header();
-    csv::CSVReader metaDataReader(settings.inputCsvPath, metaDataFormat);
+    csv::CSVReader metaDataReader(settings.inputCsvPath.string(), metaDataFormat);
 
     // Read meta data
     int rowNumber = 1;
@@ -65,7 +72,7 @@ double MPS::importInitialCondition() {
     // Set up CSV format for particle data
     csv::CSVFormat particleDataFormat;
     particleDataFormat.header_row(particleDataHeaderRow - 1);
-    csv::CSVReader particleDataReader(settings.inputCsvPath, particleDataFormat);
+    csv::CSVReader particleDataReader(settings.inputCsvPath.string(), particleDataFormat);
 
     // Read particle data and create Particle objects
     for (auto& row : particleDataReader) {

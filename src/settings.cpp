@@ -9,9 +9,11 @@
 using std::format;
 
 void Settings::load() {
-    std::ifstream ifs("input/settings.yml");
+    std::filesystem::path inputYamlPath = "input/settings.yml";
+
+    std::ifstream ifs(inputYamlPath);
     if (!ifs.is_open()) {
-        std::cerr << format("Could not open setting file: {}", "input/settings.yml")
+        std::cout << "Could not open setting file:" << inputYamlPath.string() << std::endl
                   << std::endl;
         exit(-1);
     }
@@ -67,8 +69,11 @@ void Settings::load() {
             root["collision distance ratio"].get_value<double>() * particleDistance;
         coefficientOfRestitution = root["coefficient of restitution"].get_value<double>();
 
+        inputCsvPath = root["inputCsvPath"].get_value<std::string>();
+        inputCsvPath = inputYamlPath.parent_path() / inputCsvPath;
+
     } catch (const fkyaml::exception& e) {
-        std::cerr << e.what() << std::endl;
+        std::cout << e.what() << std::endl;
         exit(-1);
     }
 }
