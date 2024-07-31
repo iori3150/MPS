@@ -49,14 +49,17 @@ double MPS::importInitialCondition() {
     csv::CSVReader metaDataReader(settings.inputProfPath, metaDataFormat);
 
     // Read meta data
+    int rowNumber = 1;
     for (auto& row : metaDataReader) {
         // Get the time from the first row
-        if (metaDataReader.n_rows() + 1 == 1)
+        if (rowNumber == 1)
             initialTime = row[1].get<double>();
 
         // Stop reading after the row before the particle data header
-        if (metaDataReader.n_rows() + 1 == particleDataHeaderRow - 1)
+        if (rowNumber == particleDataHeaderRow - 1)
             break;
+
+        rowNumber++;
     }
 
     // Set up CSV format for particle data
