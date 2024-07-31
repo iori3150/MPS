@@ -5,9 +5,9 @@
             "type": "lldb",
             "request": "launch",
             "name": "Debug main.exe",
-            "program": "${workspaceFolder}/build/main.exe",
+            "program": "${workspaceFolder}/build/debug/main.exe",
             "args": [],
-            "cwd": "${workspaceFolder}"
+            "cwd": "${workspaceFolder}",
         }
 	]
 }

@@ -31,27 +31,28 @@ public:
     }
 };
 
-class Settings{
+class Settings {
 private:
-  // computational conditions
+public:
+    // computational conditions
     double dim;
     double particleDistance;
-    double dt; 
+    double dt;
     double finishTime;
-    double outputPeriod;
+    double outputInterval;
     double cflCondition;
-    std::string inputProfPath                  = "input/input.csv";
-    std::string inputDataPath                  = "input/result/input.data";
+    std::string inputProfPath = "input/input.csv";
+    std::string inputDataPath = "input/result/input.data";
 
-// domain
-  Domain domain;
+    // domain
+    Domain domain;
 
     // physical properties
-    double density      ;
+    double density;
     double kinematicViscosity;
 
-  // gravity
-  Eigen::Vector3d gravity;
+    // gravity
+    Eigen::Vector3d gravity;
 
     // effective radius
     struct {
@@ -59,19 +60,18 @@ private:
         double viscosity;
         double surfaceDetection;
         double max;
-  } effectiveRadius;
+    } effectiveRadius;
 
-  // surface detection
-  double thresholdForSurfaceDetection;
+    // surface detection
+    double thresholdForSurfaceDetection;
 
-  // pressure calculation
-  double compressibility;
-  double relaxationCoefficientForPressure;
+    // pressure calculation
+    double compressibility;
+    double relaxationCoefficientForPressure;
 
-  // collision
-  double collisionDistance;
-  double coefficientOfRestitution;
+    // collision
+    double collisionDistance;
+    double coefficientOfRestitution;
 
-public:
     void load();
 };

@@ -2,7 +2,6 @@
 
 #include "mps.hpp"
 #include "particle.hpp"
-#include "settings.hpp"
 
 #include <chrono>
 #include <fstream>

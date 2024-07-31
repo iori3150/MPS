@@ -3,13 +3,14 @@ dim: 2
 particleDistance: 0.025
 dt: 0.001
 finishTime: 2.0
-outputPeriod: 0.05
+outputInterval: 0.05
 cflCondition: 0.3
 # numPhysicalCores: 4
 
 # domain
-domainMin: [-0.1, -0.1, 0.0]
-domainMax: [1.1, 2.0, 0.0]
+domainRangeX: [-0.1, 1.1]
+domainRangeY: [-0.1, 2.0]
+domainRangeZ: [0.0, 0.0]
 
 # physical properties
 density: 1000.0
@@ -18,8 +19,8 @@ kinematicViscosity: 1.0e-06 # If we don't write to one decimal place, it will be
 # gravity
 gravity: [0.0, -9.8, 0.0]
 
-# effective radius
-effectiveRadius:
+# effective radius (ratio to the particle distance)
+effectiveRadiusRatio:
   pressure: 3.1
   viscosity: 3.1
   surfaceDetection: 3.1
@@ -32,9 +33,8 @@ compressibility: 0.45e-09
 relaxationCoefficientForPressure: 0.2
 
 # collision
-collisionDistanceRatio: 0.5
+collisionDistanceRatio: 0.5 # ratio to particle distance
 coefficientOfRestitution: 0.2
-
 # i/o
 # relative path from the directory where this file is located
-particlesPath: ./input.prof
+# particlesPath: ./input.prof
