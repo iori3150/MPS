@@ -61,8 +61,10 @@ public:
     Settings settings;
     std::vector<Particle> particles;
 
-    MPS();
-    double initialize(); // Initialize particles and return initial time
+    MPS() = default;
+    MPS(const std::filesystem::path& inputYamlPath);
+
+    double loadInitialState(); // Initialize particles and return initial time
     void stepForward(const bool isTimeToExport);
     double getCourantNumber();
 };

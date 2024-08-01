@@ -19,8 +19,8 @@ double weight(const double& dist, const double& re) {
     return w;
 }
 
-MPS::MPS() {
-    settings.load();
+MPS::MPS(const std::filesystem::path& inputYamlPath) {
+    settings.load(inputYamlPath);
 
     this->refValues.pressure = RefValues(
         settings.dim,
@@ -97,7 +97,7 @@ double MPS::importInitialCondition() {
     return initialTime;
 }
 
-double MPS::initialize() {
+double MPS::loadInitialState() {
     double initialTime = importInitialCondition();
 
     this->sourceTerm.resize(particles.size());

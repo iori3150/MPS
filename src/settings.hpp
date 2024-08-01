@@ -75,5 +75,5 @@ public:
     // io
     std::filesystem::path inputCsvPath;
 
-    void load();
+    void load(const std::filesystem::path& inputYamlPath);
 };
