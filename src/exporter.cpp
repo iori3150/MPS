@@ -3,7 +3,6 @@
 #include "csv.hpp"
 #include "utilities.hpp"
 
-#include <cstdlib>
 #include <fstream>
 
 using std::endl;

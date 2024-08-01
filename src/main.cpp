@@ -1,7 +1,6 @@
 #include "simulation.hpp"
 #include "utilities.hpp"
 
-#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 

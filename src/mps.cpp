@@ -4,7 +4,6 @@
 #include "utilities.hpp"
 
 #include <Eigen/IterativeLinearSolvers>
-#include <cstdlib>
 #include <iostream>
 #include <queue>
 
