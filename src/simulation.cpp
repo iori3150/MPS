@@ -23,11 +23,13 @@ using std::chrono::system_clock;
 namespace fs     = std::filesystem;
 namespace chrono = std::chrono;
 
-void Simulation::run() {
-    startSimulation();
+void Simulation::run(const fs::path& inputYamlPath) {
+    cout << endl << "*** START SIMULATION ***" << endl;
+    createResultDirectory(inputYamlPath);
+    prepareLogFile();
 
-    mps  = MPS();
-    time = mps.initialize();
+    mps  = MPS(inputYamlPath);
+    time = mps.loadInitialState();
     exportParticles(mps.particles);
 
     simulationStartTime = system_clock::now();
@@ -48,13 +50,36 @@ void Simulation::run() {
     simulationEndTime = system_clock::now();
 
     endSimulation();
-} // namespace std::chrono
+}
 
-void Simulation::startSimulation() {
-    cout << endl << "*** START SIMULATION ***" << endl;
+void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
+    fs::path parentDirectory = "./results";
+    fs::create_directory(parentDirectory);
 
-    createResultDirectory();
+    const auto currentTime =
+        chrono::zoned_time{chrono::current_zone(), system_clock::now()};
+    std::string timestamp = format("{:%F_%H-%M}", currentTime);
 
+    resultDirectory = parentDirectory / timestamp;
+
+    // If the result folder with the same timestamp already exists (i.e. previous
+    // simulations have run within one minute), create a new folder name by appending a
+    // number. For example, if "2024-08-01_10-02" already exists, create
+    // "2024-08-01_10-02(1)", "---(2)", "---(3)", ... until the name is unique.
+    int count = 1;
+    while (fs::exists(resultDirectory)) {
+        resultDirectory = parentDirectory / format("{}({})", timestamp, count);
+        count++;
+    }
+
+    fs::create_directory(resultDirectory);
+    fs::create_directory(resultDirectory / "csv");
+    fs::create_directory(resultDirectory / "vtu");
+
+    fs::copy(inputYamlPath, resultDirectory / inputYamlPath.filename());
+}
+
+void Simulation::prepareLogFile() {
     logFile.open(resultDirectory / "log.csv");
     if (!logFile.is_open()) {
         cout << "ERROR: Could not open the log file: " << resultDirectory / "log.csv"
@@ -88,31 +113,6 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 
     logFile.close();
-}
-
-void Simulation::createResultDirectory() {
-    fs::path parentDirectory = "./results";
-    fs::create_directory(parentDirectory);
-
-    const auto currentTime =
-        chrono::zoned_time{chrono::current_zone(), system_clock::now()};
-    std::string timestamp = format("{:%F_%H-%M}", currentTime);
-
-    resultDirectory = parentDirectory / timestamp;
-
-    // If the result folder with the same timestamp already exists (i.e. previous
-    // simulations have run within one minute), create a new folder name by appending a
-    // number. For example, if "2024-08-01_10-02" already exists, create
-    // "2024-08-01_10-02(1)", "---(2)", "---(3)", ... until the name is unique.
-    int count = 1;
-    while (fs::exists(resultDirectory)) {
-        resultDirectory = parentDirectory / format("{}({})", timestamp, count);
-        count++;
-    }
-
-    fs::create_directory(resultDirectory);
-    fs::create_directory(resultDirectory / "csv");
-    fs::create_directory(resultDirectory / "vtu");
 }
 
 void Simulation::timeStepReport(

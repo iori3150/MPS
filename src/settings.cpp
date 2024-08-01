@@ -8,9 +8,7 @@
 
 using std::format;
 
-void Settings::load() {
-    std::filesystem::path inputYamlPath = "input/settings.yml";
-
+void Settings::load(const std::filesystem::path& inputYamlPath) {
     std::ifstream ifs(inputYamlPath);
     if (!ifs.is_open()) {
         std::cout << "Could not open setting file:" << inputYamlPath.string() << std::endl

@@ -4,12 +4,13 @@
 #include "particle.hpp"
 
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 
 class Simulation {
 public:
-    void run();
+    void run(const std::filesystem::path& inputYamlPath);
 
 private:
     MPS mps;
@@ -22,10 +23,8 @@ private:
     std::ofstream logFile;
     std::filesystem::path resultDirectory;
 
-    void startSimulation();
-    void endSimulation();
-
-    void createResultDirectory();
+    void createResultDirectory(const std::filesystem::path& inputYamlPath);
+    void prepareLogFile();
 
     void timeStepReport(
         const std::chrono::system_clock::time_point& timeStepStartTime,
@@ -34,4 +33,6 @@ private:
     );
     bool isTimeToExport();
     void exportParticles(const std::vector<Particle>& particles);
+
+    void endSimulation();
 };

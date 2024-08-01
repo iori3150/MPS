@@ -1,8 +1,12 @@
 #include "simulation.hpp"
 
-int main() {
-  Simulation simulation;
-  simulation.run();
+#include <filesystem>
 
-  return 0;
+int main() {
+    std::filesystem::path inputYamlPath = "input/settings.yml";
+
+    Simulation simulation;
+    simulation.run(inputYamlPath);
+
+    return 0;
 }
