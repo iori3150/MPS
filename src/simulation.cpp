@@ -5,6 +5,7 @@
 #include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
+#include "utilities.hpp"
 
 #include <Eigen/Dense>
 #include <format>
@@ -80,12 +81,12 @@ void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
 }
 
 void Simulation::prepareLogFile() {
-    logFile.open(resultDirectory / "log.csv");
+    fs::path logFilePath = resultDirectory / "log.csv";
+    logFile.open(logFilePath);
     if (!logFile.is_open()) {
-        cout << "ERROR: Could not open the log file: " << resultDirectory / "log.csv"
-             << std::endl;
-        exit(-1);
+        exitWithError("Could not open the log file: " + logFilePath.string());
     }
+
     auto logFileWriter = csv::make_csv_writer(logFile);
     logFileWriter << std::vector<std::string>{
         "Time Step",
