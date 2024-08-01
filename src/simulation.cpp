@@ -20,7 +20,8 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
 using std::chrono::system_clock;
-namespace fs = std::filesystem;
+namespace fs     = std::filesystem;
+namespace chrono = std::chrono;
 
 void Simulation::run() {
     startSimulation();
@@ -47,15 +48,17 @@ void Simulation::run() {
     simulationEndTime = system_clock::now();
 
     endSimulation();
-}
+} // namespace std::chrono
 
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
 
-    logFile.open("result/log.csv");
+    createResultDirectory();
+
+    logFile.open(resultDirectory / "log.csv");
     if (!logFile.is_open()) {
-        cout << "ERROR: Could not open the log file: "
-             << "result/log.csv" << std::endl;
+        cout << "ERROR: Could not open the log file: " << resultDirectory / "log.csv"
+             << std::endl;
         exit(-1);
     }
     auto logFileWriter = csv::make_csv_writer(logFile);
@@ -85,6 +88,31 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 
     logFile.close();
+}
+
+void Simulation::createResultDirectory() {
+    fs::path parentDirectory = "./results";
+    fs::create_directory(parentDirectory);
+
+    const auto currentTime =
+        chrono::zoned_time{chrono::current_zone(), system_clock::now()};
+    std::string timestamp = format("{:%F_%H-%M}", currentTime);
+
+    resultDirectory = parentDirectory / timestamp;
+
+    // If the result folder with the same timestamp already exists (i.e. previous
+    // simulations have run within one minute), create a new folder name by appending a
+    // number. For example, if "2024-08-01_10-02" already exists, create
+    // "2024-08-01_10-02(1)", "---(2)", "---(3)", ... until the name is unique.
+    int count = 1;
+    while (fs::exists(resultDirectory)) {
+        resultDirectory = parentDirectory / format("{}({})", timestamp, count);
+        count++;
+    }
+
+    fs::create_directory(resultDirectory);
+    fs::create_directory(resultDirectory / "csv");
+    fs::create_directory(resultDirectory / "vtu");
 }
 
 void Simulation::timeStepReport(
@@ -151,12 +179,12 @@ bool Simulation::isTimeToExport() {
 void Simulation::exportParticles(const std::vector<Particle>& particles) {
     Exporter exporter;
     exporter.toCsv(
-        fs::path(std::format("result/csv/output_{:04}.csv", outFileNum)),
+        resultDirectory / std::format("csv/output_{:04}.csv", outFileNum),
         particles,
         time
     );
     exporter.toVtu(
-        fs::path(std::format("result/vtu/output_{:04}.vtu", outFileNum)),
+        resultDirectory / std::format("vtu/output_{:04}.vtu", outFileNum),
         particles,
         time
     );

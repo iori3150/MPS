@@ -19,11 +19,13 @@ private:
     std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
 
     int outFileNum = 0;
-
     std::ofstream logFile;
+    std::filesystem::path resultDirectory;
 
     void startSimulation();
     void endSimulation();
+
+    void createResultDirectory();
 
     void timeStepReport(
         const std::chrono::system_clock::time_point& timeStepStartTime,
