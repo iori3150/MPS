@@ -20,7 +20,8 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
 using std::chrono::system_clock;
-namespace fs = std::filesystem;
+namespace fs     = std::filesystem;
+namespace chrono = std::chrono;
 
 void Simulation::run() {
     startSimulation();
@@ -47,15 +48,17 @@ void Simulation::run() {
     simulationEndTime = system_clock::now();
 
     endSimulation();
-}
+} // namespace std::chrono
 
 void Simulation::startSimulation() {
     cout << endl << "*** START SIMULATION ***" << endl;
 
-    logFile.open("result/log.csv");
+    createResultDirectory();
+
+    logFile.open(resultDirectory / "log.csv");
     if (!logFile.is_open()) {
-        cout << "ERROR: Could not open the log file: "
-             << "result/log.csv" << std::endl;
+        cout << "ERROR: Could not open the log file: " << resultDirectory / "log.csv"
+             << std::endl;
         exit(-1);
     }
     auto logFileWriter = csv::make_csv_writer(logFile);
@@ -85,6 +88,21 @@ void Simulation::endSimulation() {
     cout << endl << "*** END SIMULATION ***" << endl << endl;
 
     logFile.close();
+}
+
+void Simulation::createResultDirectory() {
+    fs::path parentDirectory = "./results";
+    fs::create_directory(parentDirectory);
+
+    const auto currentTime =
+        chrono::zoned_time{chrono::current_zone(), system_clock::now()};
+    resultDirectory = parentDirectory / format("{:%F_%H-%M}", currentTime);
+    int count       = 1;
+    while (fs::exists(resultDirectory)) {
+        resultDirectory = parentDirectory / format("{:%F_%H-%M}({})", currentTime, count);
+        count++;
+    }
+    fs::create_directory(resultDirectory);
 }
 
 void Simulation::timeStepReport(

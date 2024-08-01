@@ -16,8 +16,7 @@ void Exporter::toCsv(
 ) {
     std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        std::cerr << format("Could not open result file: {}", outFilePath.string())
-                  << std::endl;
+        std::cerr << format("Could not open file: {}", outFilePath.string()) << std::endl;
         exit(-1);
     }
     auto writer = csv::make_csv_writer(outFile);
@@ -65,8 +64,7 @@ void Exporter::toVtu(
 ) {
     std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        std::cerr << format("Could not open result file: {}", outFilePath.string())
-                  << std::endl;
+        std::cerr << format("Could not open file: {}", outFilePath.string()) << std::endl;
         exit(-1);
     }
 
