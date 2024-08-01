@@ -1,12 +1,11 @@
 #include "exporter.hpp"
 
 #include "csv.hpp"
+#include "utilities.hpp"
 
-#include <format>
 #include <fstream>
 
 using std::endl;
-using std::format;
 using std::make_tuple;
 
 void Exporter::toCsv(
@@ -16,8 +15,7 @@ void Exporter::toCsv(
 ) {
     std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        std::cerr << format("Could not open file: {}", outFilePath.string()) << std::endl;
-        exit(-1);
+        exitWithError("Could not open target csv file: " + outFilePath.string());
     }
     auto writer = csv::make_csv_writer(outFile);
 
@@ -64,8 +62,7 @@ void Exporter::toVtu(
 ) {
     std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        std::cerr << format("Could not open file: {}", outFilePath.string()) << std::endl;
-        exit(-1);
+        exitWithError("Could not open target vtu file: " + outFilePath.string());
     }
 
     // --------------
@@ -131,12 +128,12 @@ void Exporter::toVtu(
 
     dataArrayBegin(outFile, "1", "Float64", "Number Density Ratio");
     for (auto& pi : particles)
-        outFile << pi.numberDensityRatio << std::endl;
+        outFile << pi.numberDensityRatio << endl;
     dataArrayEnd(outFile);
 
     dataArrayBegin(outFile, "1", "Int32", "Boundary Condition");
     for (auto& pi : particles)
-        outFile << static_cast<int>(pi.boundaryCondition) << std::endl;
+        outFile << static_cast<int>(pi.boundaryCondition) << endl;
     dataArrayEnd(outFile);
 
     outFile << "</PointData>" << endl;

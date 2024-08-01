@@ -1,6 +1,7 @@
 #include "mps.hpp"
 
 #include "csv.hpp"
+#include "utilities.hpp"
 
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
@@ -41,10 +42,10 @@ MPS::MPS(const std::filesystem::path& inputYamlPath) {
 
 double MPS::importInitialCondition() {
     if (!std::filesystem::exists(settings.inputCsvPath)) {
-        cout << "ERROR: Input file does not exist in the specified path: "
-             << settings.inputCsvPath << endl
-             << endl;
-        std::exit(-1);
+        exitWithError(
+            "Input file does not exist in the specified path: " +
+            settings.inputCsvPath.string()
+        );
     }
 
     int particleDataHeaderRow = 3;
@@ -389,8 +390,7 @@ void MPS::solvePoissonEquation() {
     solver.compute(coefficientMatrix);
     Eigen::VectorXd pressures = solver.solve(sourceTerm);
     if (solver.info() != Eigen::Success) {
-        cout << "Pressure calculation failed." << endl;
-        std::exit(-1);
+        exitWithError("Pressure calculation failed.");
     }
 
 #pragma omp parallel for
@@ -487,7 +487,7 @@ double MPS::getCourantNumber() {
     }
 
     if (maxCourantNumber > settings.cflCondition) {
-        cerr << "ERROR: Courant number is larger than CFL condition. Courant = "
+        cerr << "WARNING: Courant number is larger than CFL condition. Courant = "
              << maxCourantNumber << endl;
     }
 

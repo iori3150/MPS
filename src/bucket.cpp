@@ -51,7 +51,6 @@ void Bucket::storeParticles(std::vector<Particle>& particles) {
             cerr << "z = " << pi.position.z() << endl;
             pi.type = ParticleType::Ghost;
             continue;
-            // std::exit(-1);
         }
 
         int ix      = (int) ((pi.position.x() - domain.x.min) / length) + 1;

@@ -1,5 +1,7 @@
 #include "settings.hpp"
 
+#include "utilities.hpp"
+
 #include <algorithm>
 #include <fkYAML/node.hpp>
 #include <format>
@@ -11,9 +13,7 @@ using std::format;
 void Settings::load(const std::filesystem::path& inputYamlPath) {
     std::ifstream ifs(inputYamlPath);
     if (!ifs.is_open()) {
-        std::cout << "Could not open setting file:" << inputYamlPath.string() << std::endl
-                  << std::endl;
-        exit(-1);
+        exitWithError("Could not open setting file: " + inputYamlPath.string());
     }
 
     fkyaml::node root = fkyaml::node::deserialize(ifs);
@@ -71,7 +71,6 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         inputCsvPath = inputYamlPath.parent_path() / inputCsvPath;
 
     } catch (const fkyaml::exception& e) {
-        std::cout << e.what() << std::endl;
-        exit(-1);
+        exitWithError(e.what());
     }
 }
