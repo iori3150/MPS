@@ -96,13 +96,23 @@ void Simulation::createResultDirectory() {
 
     const auto currentTime =
         chrono::zoned_time{chrono::current_zone(), system_clock::now()};
-    resultDirectory = parentDirectory / format("{:%F_%H-%M}", currentTime);
-    int count       = 1;
+    std::string timestamp = format("{:%F_%H-%M}", currentTime);
+
+    resultDirectory = parentDirectory / timestamp;
+
+    // If the result folder with the same timestamp already exists (i.e. previous
+    // simulations have run within one minute), create a new folder name by appending a
+    // number. For example, if "2024-08-01_10-02" already exists, create
+    // "2024-08-01_10-02(1)", "---(2)", "---(3)", ... until the name is unique.
+    int count = 1;
     while (fs::exists(resultDirectory)) {
-        resultDirectory = parentDirectory / format("{:%F_%H-%M}({})", currentTime, count);
+        resultDirectory = parentDirectory / format("{}({})", timestamp, count);
         count++;
     }
+
     fs::create_directory(resultDirectory);
+    fs::create_directory(resultDirectory / "csv");
+    fs::create_directory(resultDirectory / "vtu");
 }
 
 void Simulation::timeStepReport(
@@ -169,12 +179,12 @@ bool Simulation::isTimeToExport() {
 void Simulation::exportParticles(const std::vector<Particle>& particles) {
     Exporter exporter;
     exporter.toCsv(
-        fs::path(std::format("result/csv/output_{:04}.csv", outFileNum)),
+        resultDirectory / std::format("csv/output_{:04}.csv", outFileNum),
         particles,
         time
     );
     exporter.toVtu(
-        fs::path(std::format("result/vtu/output_{:04}.vtu", outFileNum)),
+        resultDirectory / std::format("vtu/output_{:04}.vtu", outFileNum),
         particles,
         time
     );

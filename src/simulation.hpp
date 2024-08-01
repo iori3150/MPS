@@ -26,6 +26,7 @@ private:
     void endSimulation();
 
     void createResultDirectory();
+
     void timeStepReport(
         const std::chrono::system_clock::time_point& timeStepStartTime,
         const std::chrono::system_clock::time_point& timeStepEndTime,
