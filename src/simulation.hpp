@@ -20,7 +20,7 @@ private:
     std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
 
     int outFileNum = 0;
-    std::ofstream logFile;
+    std::ofstream timeStepReportFile;
     std::filesystem::path resultDirectory;
 
     void createResultDirectory(const std::filesystem::path& inputYamlPath);

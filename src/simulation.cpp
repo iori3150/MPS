@@ -101,14 +101,14 @@ void Simulation::prepareLogFile() {
     spdlog::set_default_logger(logger);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
 
-    fs::path logFilePath = resultDirectory / "log.csv";
-    logFile.open(logFilePath);
-    if (!logFile.is_open()) {
-        exitWithError("Could not open the log file: " + logFilePath.string());
+    fs::path path = resultDirectory / "time_step_report.csv";
+    timeStepReportFile.open(path);
+    if (!timeStepReportFile.is_open()) {
+        exitWithError("Could not open the log file: " + path.string());
     }
 
-    auto logFileWriter = csv::make_csv_writer(logFile);
-    logFileWriter << std::vector<std::string>{
+    auto writer = csv::make_csv_writer(timeStepReportFile);
+    writer << std::vector<std::string>{
         "Time Step",
         "Dt (s)",
         "Current Time (s)",
@@ -130,7 +130,7 @@ void Simulation::endSimulation() {
     spdlog::info("END SIMULATION");
     spdlog::info(std::format("Total Simulation Time = {:%T}", totalSimulationTime));
 
-    logFile.close();
+    timeStepReportFile.close();
 }
 
 void Simulation::timeStepReport(
@@ -174,8 +174,8 @@ void Simulation::timeStepReport(
             )
          << endl;
 
-    auto logFileWriter = csv::make_csv_writer(logFile);
-    logFileWriter << std::make_tuple(
+    auto writer = csv::make_csv_writer(timeStepReportFile);
+    writer << std::make_tuple(
         timeStep,
         mps.settings.dt,
         formattedTime,
