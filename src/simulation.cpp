@@ -12,6 +12,10 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <spdlog/async.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/spdlog.h>
 #include <string>
 
 using std::cerr;
@@ -25,7 +29,6 @@ namespace fs     = std::filesystem;
 namespace chrono = std::chrono;
 
 void Simulation::run(const fs::path& inputYamlPath) {
-    cout << endl << "*** START SIMULATION ***" << endl;
     createResultDirectory(inputYamlPath);
     prepareLogFile();
 
@@ -33,6 +36,7 @@ void Simulation::run(const fs::path& inputYamlPath) {
     time = mps.loadInitialState();
     exportParticles(mps.particles);
 
+    spdlog::info("START SIMULATION");
     simulationStartTime = system_clock::now();
     while (time <= mps.settings.finishTime) {
         auto timeStepStartTime = system_clock::now();
@@ -81,6 +85,22 @@ void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
 }
 
 void Simulation::prepareLogFile() {
+    // Create console sink and file sink
+    auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    auto file_sink   = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+        fs::path(resultDirectory / "execution.log").string(),
+        true
+    );
+
+    // Create logger by ombining console sink and file sink
+    std::vector<spdlog::sink_ptr> sinks{stdout_sink, file_sink};
+    auto logger =
+        std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
+
+    // Register logger
+    spdlog::set_default_logger(logger);
+    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
+
     fs::path logFilePath = resultDirectory / "log.csv";
     logFile.open(logFilePath);
     if (!logFile.is_open()) {
@@ -107,11 +127,8 @@ void Simulation::endSimulation() {
     auto totalSimulationTime =
         duration_cast<seconds>(simulationEndTime - simulationStartTime);
 
-    cout << endl
-         << std::format("Total Simulation Time = {:%Hh %Mm %Ss}", totalSimulationTime)
-         << endl;
-
-    cout << endl << "*** END SIMULATION ***" << endl << endl;
+    spdlog::info("END SIMULATION");
+    spdlog::info(std::format("Total Simulation Time = {:%T}", totalSimulationTime));
 
     logFile.close();
 }
@@ -135,9 +152,9 @@ void Simulation::timeStepReport(
     auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
     auto formattedTime          = std::format("{:.3f}", time);
-    auto formattedElapsed       = std::format("{:%H:%M:%S}", elapsed);
+    auto formattedElapsed       = std::format("{:%T}", elapsed);
     auto formattedAverage       = std::format("{:.3f}", average);
-    auto formattedRemain        = std::format("{:%H:%M:%S}", remain);
+    auto formattedRemain        = std::format("{:%T}", remain);
     auto formattedLast          = std::format("{:%S}", last);
     auto formattedCourantNumber = std::format("{:.2f}", courantNumber);
 
