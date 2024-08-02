@@ -6,10 +6,7 @@
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
 #include <queue>
-
-using std::cerr;
-using std::cout;
-using std::endl;
+#include <spdlog/spdlog.h>
 
 double weight(const double& dist, const double& re) {
     double w = 0.0;
@@ -246,9 +243,10 @@ void MPS::collision() {
                     pi.position -= positionImpulse * invMassi * normal;
                     pj.position += positionImpulse * invMassj * normal;
 
-                    // cerr << "WARNING: Collision between particles " << pi.id << " and "
-                    // << pj.id << " occurred."
-                    // << endl;
+                    // spdlog::warn(
+                    //     "Collision between particles " + std::to_string(pi.id) + " and
+                    //     " + std::to_string(pj.id) + " occurred."
+                    // );
                 }
             }
         }
@@ -376,9 +374,11 @@ void MPS::ensureDirichletBoundaryConnection() {
     for (auto& pi : particles) {
         if (!pi.isDirichletBoundaryConnected &&
             pi.boundaryCondition == BoundaryCondition::Inner) {
-            cerr << "WARNING: There is no Dirichlet boundary condition connected to the "
-                    "particle (id = "
-                 << pi.id << ")." << endl;
+            spdlog::warn(
+                "There is no Dirichlet boundary condition connected to the "
+                "particle (id = " +
+                std::to_string(pi.id) + ")."
+            );
 
             coefficientMatrix.coeffRef(pi.id, pi.id) *= 2.0;
         }
@@ -487,8 +487,10 @@ double MPS::getCourantNumber() {
     }
 
     if (maxCourantNumber > settings.cflCondition) {
-        cerr << "WARNING: Courant number is larger than CFL condition. Courant = "
-             << maxCourantNumber << endl;
+        spdlog::warn(
+            "Courant number is larger than CFL condition. Courant = " +
+            std::to_string(maxCourantNumber)
+        );
     }
 
     return maxCourantNumber;
