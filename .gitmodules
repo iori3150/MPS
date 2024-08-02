@@ -10,3 +10,6 @@
 [submodule "easyloggingpp"]
 	path = easyloggingpp
 	url = https://github.com/abumq/easyloggingpp.git
+[submodule "spdlog"]
+	path = spdlog
+	url = https://github.com/gabime/spdlog.git
