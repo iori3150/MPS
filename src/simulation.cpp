@@ -18,9 +18,6 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
-using std::cerr;
-using std::cout;
-using std::endl;
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
@@ -158,21 +155,21 @@ void Simulation::timeStepReport(
     auto formattedLast          = std::format("{:%S}", last);
     auto formattedCourantNumber = std::format("{:.2f}", courantNumber);
 
-    cout << std::format(
-                "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
-                "ave={}s/step   last={}s/step   out={}files   Courant={}",
-                timeStep,
-                mps.settings.dt,
-                formattedTime,
-                mps.settings.finishTime,
-                formattedElapsed,
-                formattedRemain,
-                formattedAverage,
-                formattedLast,
-                outFileNum,
-                formattedCourantNumber
-            )
-         << endl;
+    std::cout << std::format(
+                     "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
+                     "ave={}s/step   last={}s/step   out={}files   Courant={}",
+                     timeStep,
+                     mps.settings.dt,
+                     formattedTime,
+                     mps.settings.finishTime,
+                     formattedElapsed,
+                     formattedRemain,
+                     formattedAverage,
+                     formattedLast,
+                     outFileNum,
+                     formattedCourantNumber
+                 )
+              << std::endl;
 
     auto writer = csv::make_csv_writer(timeStepReportFile);
     writer << std::make_tuple(
