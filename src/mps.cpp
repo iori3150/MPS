@@ -1,7 +1,6 @@
 #include "mps.hpp"
 
 #include "csv.hpp"
-#include "utilities.hpp"
 
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
@@ -39,8 +38,8 @@ MPS::MPS(const std::filesystem::path& inputYamlPath) {
 
 double MPS::importInitialCondition() {
     if (!std::filesystem::exists(settings.inputCsvPath)) {
-        exitWithError(
-            "Input file does not exist in the specified path: " +
+        spdlog::error(
+            "Input file does not exist in the specified path: {}",
             settings.inputCsvPath.string()
         );
     }
@@ -395,7 +394,7 @@ void MPS::solvePoissonEquation() {
     solver.compute(coefficientMatrix);
     Eigen::VectorXd pressures = solver.solve(sourceTerm);
     if (solver.info() != Eigen::Success) {
-        exitWithError("Pressure calculation failed.");
+        spdlog::error("Pressure calculation failed.");
     }
 
 #pragma omp parallel for

@@ -5,9 +5,9 @@
 #include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
-#include "utilities.hpp"
 
 #include <Eigen/Dense>
+#include <cstdlib> // for std::exit
 #include <format>
 #include <fstream>
 #include <iomanip>
@@ -108,11 +108,22 @@ void Simulation::prepareLogFile() {
     // Register logger
     spdlog::set_default_logger(logger);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
+    spdlog::flush_on(spdlog::level::err); // Ensure error level log is flushed immediately
+
+    spdlog::set_error_handler([](const std::string& errorMessage) {
+        spdlog::default_logger()->error(errorMessage);
+
+        // Flush log buffer to ensure all log messages
+        // are written to the file before exiting
+        spdlog::default_logger()->flush();
+
+        std::exit(EXIT_FAILURE);
+    });
 
     fs::path path = resultDirectory / "time_step_report.csv";
     timeStepReportFile.open(path);
     if (!timeStepReportFile.is_open()) {
-        exitWithError("Could not open the log file: " + path.string());
+        spdlog::error("Could not open the log file: {}", path.string());
     }
 
     auto writer = csv::make_csv_writer(timeStepReportFile);
