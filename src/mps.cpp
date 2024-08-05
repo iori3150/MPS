@@ -208,6 +208,7 @@ void MPS::moveParticles() {
         if (pi.type == ParticleType::Fluid) {
             pi.velocity += pi.acceleration * settings.dt;
             pi.position += pi.velocity * settings.dt;
+            checkBoundaryViolation(pi);
         }
         pi.acceleration.setZero();
     }
@@ -243,10 +244,11 @@ void MPS::collision() {
                     pi.position -= positionImpulse * invMassi * normal;
                     pj.position += positionImpulse * invMassj * normal;
 
-                    // spdlog::warn(
+                    // spdlog::debug(
                     //     "Collision between particles " + std::to_string(pi.id) + " and
                     //     " + std::to_string(pj.id) + " occurred."
                     // );
+                    // debugLogCount++;
                 }
             }
         }
@@ -272,7 +274,8 @@ void MPS::setBoundaryCondition() {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
             pi.boundaryCondition = BoundaryCondition::Ignored;
 
-        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
+        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) <
+                   beta * n0) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {
@@ -374,11 +377,12 @@ void MPS::ensureDirichletBoundaryConnection() {
     for (auto& pi : particles) {
         if (!pi.isDirichletBoundaryConnected &&
             pi.boundaryCondition == BoundaryCondition::Inner) {
-            spdlog::warn(
+            spdlog::debug(
                 "There is no Dirichlet boundary condition connected to the "
                 "particle (id = " +
                 std::to_string(pi.id) + ")."
             );
+            debugLogCount++;
 
             coefficientMatrix.coeffRef(pi.id, pi.id) *= 2.0;
         }
@@ -468,8 +472,8 @@ void MPS::moveParticlesWithPressureGradient() {
         if (pi.type == ParticleType::Fluid) {
             pi.velocity += pi.acceleration * settings.dt;
             pi.position += pi.acceleration * settings.dt * settings.dt;
+            checkBoundaryViolation(pi);
         }
-
         pi.acceleration.Zero();
     }
 }
@@ -487,10 +491,11 @@ double MPS::getCourantNumber() {
     }
 
     if (maxCourantNumber > settings.cflCondition) {
-        spdlog::warn(
+        spdlog::debug(
             "Courant number is larger than CFL condition. Courant = " +
             std::to_string(maxCourantNumber)
         );
+        debugLogCount++;
     }
 
     return maxCourantNumber;
@@ -561,5 +566,31 @@ void MPS::setNumberDensityForDisplay() {
                 getNumberDensity(pi, settings.effectiveRadius.pressure) /
                 refValues.pressure.initialNumberDensity;
         }
+    }
+}
+
+void MPS::checkBoundaryViolation(Particle& pi) {
+    bool isInDomain = true;
+    if (pi.position.x() < settings.domain.x.min ||
+        settings.domain.x.max < pi.position.x())
+        isInDomain = false;
+    if (pi.position.y() < settings.domain.y.min ||
+        settings.domain.y.max < pi.position.y())
+        isInDomain = false;
+    if (pi.position.z() < settings.domain.z.min ||
+        settings.domain.z.max < pi.position.z())
+        isInDomain = false;
+    if (!isInDomain) {
+        spdlog::debug(
+            "Particle (id={}) is out of domain. (x, y, z)=({}, {}, "
+            "{}) ",
+            std::to_string(pi.id),
+            std::to_string(pi.position.x()),
+            std::to_string(pi.position.y()),
+            std::to_string(pi.position.z())
+        );
+        debugLogCount++;
+
+        pi.type = ParticleType::Ghost;
     }
 }

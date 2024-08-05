@@ -35,8 +35,9 @@ void Simulation::run(const fs::path& inputYamlPath) {
 
     spdlog::info("START SIMULATION");
     simulationStartTime = system_clock::now();
-    while (time <= mps.settings.finishTime) {
-        auto timeStepStartTime = system_clock::now();
+    while (time + mps.settings.dt <= mps.settings.finishTime) {
+        auto timeStepStartTime   = system_clock::now();
+        int initialDebugLogCount = mps.debugLogCount;
 
         time += mps.settings.dt;
         mps.stepForward(isTimeToExport());
@@ -45,7 +46,12 @@ void Simulation::run(const fs::path& inputYamlPath) {
         }
 
         auto timeStepEndTime = system_clock::now();
-        timeStepReport(timeStepStartTime, timeStepEndTime, mps.getCourantNumber());
+        timeStepReport(
+            timeStepStartTime,
+            timeStepEndTime,
+            mps.getCourantNumber(),
+            mps.debugLogCount > initialDebugLogCount
+        );
 
         timeStep++;
     }
@@ -82,17 +88,22 @@ void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
 }
 
 void Simulation::prepareLogFile() {
-    // Create console sink and file sink
+    // Create console sink
     auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    auto file_sink   = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+    stdout_sink->set_level(spdlog::level::info);
+
+    // Create file sink
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
         fs::path(resultDirectory / "execution.log").string(),
         true
     );
+    file_sink->set_level(spdlog::level::debug);
 
-    // Create logger by ombining console sink and file sink
+    // Create logger by combining console sink and file sink
     std::vector<spdlog::sink_ptr> sinks{stdout_sink, file_sink};
     auto logger =
         std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
+    logger->set_level(spdlog::level::debug);
 
     // Register logger
     spdlog::set_default_logger(logger);
@@ -108,7 +119,8 @@ void Simulation::prepareLogFile() {
     writer << std::vector<std::string>{
         "Time Step",
         "Dt (s)",
-        "Current Time (s)",
+        "Time Before (s)",
+        "Time After (s)",
         "Finish Time (s)",
         "Elapsed Time (h:m:s)",
         "Elapsed Time (s)",
@@ -125,6 +137,14 @@ void Simulation::endSimulation() {
         duration_cast<seconds>(simulationEndTime - simulationStartTime);
 
     spdlog::info("END SIMULATION");
+    if (mps.debugLogCount > 0) {
+        spdlog::info(
+            "There were {} debug-level logs. Check 'execution.log'.",
+            mps.debugLogCount
+        );
+    } else {
+        spdlog::info("There were no debug-level logs.");
+    }
     spdlog::info(std::format("Total Simulation Time = {:%T}", totalSimulationTime));
 
     timeStepReportFile.close();
@@ -133,7 +153,8 @@ void Simulation::endSimulation() {
 void Simulation::timeStepReport(
     const system_clock::time_point& timeStepStartTime,
     const system_clock::time_point& timeStepEndTime,
-    const double& courantNumber
+    const double& courantNumber,
+    const bool& isDebugLogAdded
 ) {
     auto elapsed = duration_cast<seconds>(timeStepEndTime - simulationStartTime);
 
@@ -148,34 +169,38 @@ void Simulation::timeStepReport(
 
     auto last = duration_cast<milliseconds>(timeStepEndTime - timeStepStartTime);
 
-    auto formattedTime          = std::format("{:.3f}", time);
+    auto formattedTimeBefore    = std::format("{:.3f}", time - mps.settings.dt);
+    auto formattedTimeAfter     = std::format("{:.3f}", time);
     auto formattedElapsed       = std::format("{:%T}", elapsed);
     auto formattedAverage       = std::format("{:.3f}", average);
     auto formattedRemain        = std::format("{:%T}", remain);
     auto formattedLast          = std::format("{:%S}", last);
     auto formattedCourantNumber = std::format("{:.2f}", courantNumber);
 
-    std::cout << std::format(
-                     "{}: dt={}s   t={}s   fin={}s   elapsed={}   remain={}   "
-                     "ave={}s/step   last={}s/step   out={}files   Courant={}",
-                     timeStep,
-                     mps.settings.dt,
-                     formattedTime,
-                     mps.settings.finishTime,
-                     formattedElapsed,
-                     formattedRemain,
-                     formattedAverage,
-                     formattedLast,
-                     outFileNum,
-                     formattedCourantNumber
-                 )
-              << std::endl;
+    std::cout
+        << std::format(
+               "{}: dt={}s  t={}s->{}s  fin={}s  elapsed={}  remain={}  ave={}s/step  "
+               "last={}s/step  out={}files  Courant={}",
+               timeStep,
+               mps.settings.dt,
+               formattedTimeBefore,
+               formattedTimeAfter,
+               mps.settings.finishTime,
+               formattedElapsed,
+               formattedRemain,
+               formattedAverage,
+               formattedLast,
+               outFileNum,
+               formattedCourantNumber
+           )
+        << std::endl;
 
     auto writer = csv::make_csv_writer(timeStepReportFile);
     writer << std::make_tuple(
         timeStep,
         mps.settings.dt,
-        formattedTime,
+        formattedTimeBefore,
+        formattedTimeAfter,
         mps.settings.finishTime,
         formattedElapsed,
         elapsed.count(),
@@ -185,6 +210,15 @@ void Simulation::timeStepReport(
         outFileNum,
         formattedCourantNumber
     );
+
+    if (isDebugLogAdded) {
+        spdlog::debug(
+            "Time Step:{} Time:{}s->{}s",
+            timeStep,
+            formattedTimeBefore,
+            formattedTimeAfter
+        );
+    }
 }
 
 bool Simulation::isTimeToExport() {
