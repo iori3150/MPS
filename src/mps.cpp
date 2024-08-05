@@ -245,8 +245,9 @@ void MPS::collision() {
                     pj.position += positionImpulse * invMassj * normal;
 
                     // spdlog::debug(
-                    //     "Collision between particles " + std::to_string(pi.id) + " and
-                    //     " + std::to_string(pj.id) + " occurred."
+                    //     "Collision between particles {} and {} occurred.",
+                    //     std::to_string(pi.id),
+                    //     std::to_string(pj.id)
                     // );
                     // debugLogCount++;
                 }
@@ -378,9 +379,9 @@ void MPS::ensureDirichletBoundaryConnection() {
         if (!pi.isDirichletBoundaryConnected &&
             pi.boundaryCondition == BoundaryCondition::Inner) {
             spdlog::debug(
-                "There is no Dirichlet boundary condition connected to the "
-                "particle (id = " +
-                std::to_string(pi.id) + ")."
+                "There is no Dirichlet boundary condition connected to the particle "
+                "(id={}).",
+                std::to_string(pi.id)
             );
             debugLogCount++;
 
@@ -492,7 +493,7 @@ double MPS::getCourantNumber() {
 
     if (maxCourantNumber > settings.cflCondition) {
         spdlog::debug(
-            "Courant number is larger than CFL condition. Courant = " +
+            "Courant number is larger than CFL condition. Courant={}",
             std::to_string(maxCourantNumber)
         );
         debugLogCount++;
