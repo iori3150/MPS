@@ -7,6 +7,7 @@
 #include "particle.hpp"
 
 #include <Eigen/Dense>
+#include <cmath>   // for fmod
 #include <cstdlib> // for std::exit
 #include <format>
 #include <fstream>
@@ -233,7 +234,10 @@ void Simulation::timeStepReport(
 }
 
 bool Simulation::isTimeToExport() {
-    return time >= mps.settings.outputInterval * double(outFileNum);
+    double outputInterval = mps.settings.outputInterval;
+    double remainder      = std::fmod(time, outputInterval);
+    remainder             = std::min(remainder, outputInterval - remainder);
+    return remainder < mps.settings.dt / 10.0;
 }
 
 void Simulation::exportParticles(const std::vector<Particle>& particles) {
