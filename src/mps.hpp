@@ -52,14 +52,14 @@ private:
     void moveParticlesWithPressureGradient();
 
     double getNumberDensity(const Particle& pi, const double& re);
-
-    void setNeighbors();
-
     void setNumberDensityForDisplay();
+    void setNeighbors();
+    void checkBoundaryViolation(Particle& pi);
 
 public:
     Settings settings;
     std::vector<Particle> particles;
+    int debugLogCount = 0;
 
     MPS() = default;
     MPS(const std::filesystem::path& inputYamlPath);

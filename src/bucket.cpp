@@ -37,22 +37,6 @@ void Bucket::storeParticles(std::vector<Particle>& particles) {
         if (pi.type == ParticleType::Ghost)
             continue;
 
-        bool isInDomain = true;
-        if (pi.position.x() < domain.x.min || domain.x.max < pi.position.x())
-            isInDomain = false;
-        if (pi.position.y() < domain.y.min || domain.y.max < pi.position.y())
-            isInDomain = false;
-        if (pi.position.z() < domain.z.min || domain.z.max < pi.position.z())
-            isInDomain = false;
-        if (!isInDomain) {
-            cerr << "WARNING: particle " << pi.id << " is out of domain." << endl;
-            cerr << "x = " << pi.position.x() << " ";
-            cerr << "y = " << pi.position.y() << " ";
-            cerr << "z = " << pi.position.z() << endl;
-            pi.type = ParticleType::Ghost;
-            continue;
-        }
-
         int ix      = (int) ((pi.position.x() - domain.x.min) / length) + 1;
         int iy      = (int) ((pi.position.y() - domain.y.min) / length) + 1;
         int iz      = (int) ((pi.position.z() - domain.z.min) / length) + 1;

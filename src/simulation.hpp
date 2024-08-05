@@ -20,7 +20,7 @@ private:
     std::chrono::system_clock::time_point simulationStartTime, simulationEndTime;
 
     int outFileNum = 0;
-    std::ofstream logFile;
+    std::ofstream timeStepReportFile;
     std::filesystem::path resultDirectory;
 
     void createResultDirectory(const std::filesystem::path& inputYamlPath);
@@ -29,7 +29,8 @@ private:
     void timeStepReport(
         const std::chrono::system_clock::time_point& timeStepStartTime,
         const std::chrono::system_clock::time_point& timeStepEndTime,
-        const double& courantNumber
+        const double& courantNumber,
+        const bool& isDebugLogAdded
     );
     bool isTimeToExport();
     void exportParticles(const std::vector<Particle>& particles);

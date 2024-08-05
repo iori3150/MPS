@@ -1,15 +1,11 @@
 #include "mps.hpp"
 
 #include "csv.hpp"
-#include "utilities.hpp"
 
 #include <Eigen/IterativeLinearSolvers>
 #include <iostream>
 #include <queue>
-
-using std::cerr;
-using std::cout;
-using std::endl;
+#include <spdlog/spdlog.h>
 
 double weight(const double& dist, const double& re) {
     double w = 0.0;
@@ -42,8 +38,8 @@ MPS::MPS(const std::filesystem::path& inputYamlPath) {
 
 double MPS::importInitialCondition() {
     if (!std::filesystem::exists(settings.inputCsvPath)) {
-        exitWithError(
-            "Input file does not exist in the specified path: " +
+        spdlog::error(
+            "Input file does not exist in the specified path: {}",
             settings.inputCsvPath.string()
         );
     }
@@ -211,6 +207,7 @@ void MPS::moveParticles() {
         if (pi.type == ParticleType::Fluid) {
             pi.velocity += pi.acceleration * settings.dt;
             pi.position += pi.velocity * settings.dt;
+            checkBoundaryViolation(pi);
         }
         pi.acceleration.setZero();
     }
@@ -246,9 +243,12 @@ void MPS::collision() {
                     pi.position -= positionImpulse * invMassi * normal;
                     pj.position += positionImpulse * invMassj * normal;
 
-                    // cerr << "WARNING: Collision between particles " << pi.id << " and "
-                    // << pj.id << " occurred."
-                    // << endl;
+                    // spdlog::debug(
+                    //     "Collision between particles {} and {} occurred.",
+                    //     std::to_string(pi.id),
+                    //     std::to_string(pj.id)
+                    // );
+                    // debugLogCount++;
                 }
             }
         }
@@ -274,7 +274,8 @@ void MPS::setBoundaryCondition() {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
             pi.boundaryCondition = BoundaryCondition::Ignored;
 
-        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
+        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) <
+                   beta * n0) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {
@@ -376,9 +377,12 @@ void MPS::ensureDirichletBoundaryConnection() {
     for (auto& pi : particles) {
         if (!pi.isDirichletBoundaryConnected &&
             pi.boundaryCondition == BoundaryCondition::Inner) {
-            cerr << "WARNING: There is no Dirichlet boundary condition connected to the "
-                    "particle (id = "
-                 << pi.id << ")." << endl;
+            spdlog::debug(
+                "There is no Dirichlet boundary condition connected to the particle "
+                "(id={}).",
+                std::to_string(pi.id)
+            );
+            debugLogCount++;
 
             coefficientMatrix.coeffRef(pi.id, pi.id) *= 2.0;
         }
@@ -390,7 +394,7 @@ void MPS::solvePoissonEquation() {
     solver.compute(coefficientMatrix);
     Eigen::VectorXd pressures = solver.solve(sourceTerm);
     if (solver.info() != Eigen::Success) {
-        exitWithError("Pressure calculation failed.");
+        spdlog::error("Pressure calculation failed.");
     }
 
 #pragma omp parallel for
@@ -468,8 +472,8 @@ void MPS::moveParticlesWithPressureGradient() {
         if (pi.type == ParticleType::Fluid) {
             pi.velocity += pi.acceleration * settings.dt;
             pi.position += pi.acceleration * settings.dt * settings.dt;
+            checkBoundaryViolation(pi);
         }
-
         pi.acceleration.Zero();
     }
 }
@@ -487,8 +491,11 @@ double MPS::getCourantNumber() {
     }
 
     if (maxCourantNumber > settings.cflCondition) {
-        cerr << "WARNING: Courant number is larger than CFL condition. Courant = "
-             << maxCourantNumber << endl;
+        spdlog::debug(
+            "Courant number is larger than CFL condition. Courant={}",
+            std::to_string(maxCourantNumber)
+        );
+        debugLogCount++;
     }
 
     return maxCourantNumber;
@@ -559,5 +566,31 @@ void MPS::setNumberDensityForDisplay() {
                 getNumberDensity(pi, settings.effectiveRadius.pressure) /
                 refValues.pressure.initialNumberDensity;
         }
+    }
+}
+
+void MPS::checkBoundaryViolation(Particle& pi) {
+    bool isInDomain = true;
+    if (pi.position.x() < settings.domain.x.min ||
+        settings.domain.x.max < pi.position.x())
+        isInDomain = false;
+    if (pi.position.y() < settings.domain.y.min ||
+        settings.domain.y.max < pi.position.y())
+        isInDomain = false;
+    if (pi.position.z() < settings.domain.z.min ||
+        settings.domain.z.max < pi.position.z())
+        isInDomain = false;
+    if (!isInDomain) {
+        spdlog::debug(
+            "Particle (id={}) is out of domain. (x, y, z)=({}, {}, "
+            "{}) ",
+            std::to_string(pi.id),
+            std::to_string(pi.position.x()),
+            std::to_string(pi.position.y()),
+            std::to_string(pi.position.z())
+        );
+        debugLogCount++;
+
+        pi.type = ParticleType::Ghost;
     }
 }
