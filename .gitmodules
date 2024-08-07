@@ -1,9 +1,6 @@
 [submodule "submodules/csv-parser"]
 	path = submodules/csv-parser
 	url = https://github.com/vincentlaucsb/csv-parser.git
-[submodule "submodules/easyloggingpp"]
-	path = submodules/easyloggingpp
-	url = https://github.com/abumq/easyloggingpp.git
 [submodule "submodules/eigen"]
 	path = submodules/eigen
 	url = https://gitlab.com/libeigen/eigen.git
@@ -13,3 +10,6 @@
 [submodule "submodules/spdlog"]
 	path = submodules/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "submodules/easyloggingpp"]
+	path = submodules/easyloggingpp
+	url = https://github.com/abumq/easyloggingpp.git
