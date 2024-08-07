@@ -1,15 +1,15 @@
-[submodule "eigen-3.4.0"]
-	path = eigen-3.4.0
-	url = https://gitlab.com/libeigen/eigen.git
-[submodule "csv-parser-2.3.0"]
-	path = csv-parser-2.3.0
+[submodule "submodules/csv-parser"]
+	path = submodules/csv-parser
 	url = https://github.com/vincentlaucsb/csv-parser.git
-[submodule "fkYAML-0.3.9"]
-	path = fkYAML-0.3.9
+[submodule "submodules/eigen"]
+	path = submodules/eigen
+	url = https://gitlab.com/libeigen/eigen.git
+[submodule "submodules/fkYAML"]
+	path = submodules/fkYAML
 	url = https://github.com/fktn-k/fkYAML.git
-[submodule "easyloggingpp"]
-	path = easyloggingpp
-	url = https://github.com/abumq/easyloggingpp.git
-[submodule "spdlog"]
-	path = spdlog
+[submodule "submodules/spdlog"]
+	path = submodules/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "submodules/easyloggingpp"]
+	path = submodules/easyloggingpp
+	url = https://github.com/abumq/easyloggingpp.git
