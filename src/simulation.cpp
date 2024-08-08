@@ -19,7 +19,6 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
-
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::seconds;
@@ -42,7 +41,9 @@ void Simulation::run(const fs::path& inputYamlPath) {
         int initialDebugLogCount = mps.debugLogCount;
 
         time += mps.settings.dt;
+
         mps.stepForward(isTimeToExport());
+
         if (isTimeToExport()) {
             exportParticles(mps.particles);
         }
