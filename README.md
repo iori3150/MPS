@@ -4,10 +4,12 @@
 This project focuses on implementing the Moving Particle Simulation (MPS) method.
 The MPS method is a mesh-free numerical method used for simulating incompressible fluids.
 
-This project is designed to be educational, especially for begineers, with C++ classes and external libraries such as Eigen.
+We use C++ classes and external libraries such as [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page) to make the structure modern to some extent.
+We also provide extensive documentation to serve as a learning tool for beginners.
 
 ## Features
-- Usage of C++ classes and external libraries such as Eigen
+- Usage of C++ classes.
+- Vector/matrix operations using [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page)
 - Detailed documentation
 
 ## Getting Started
@@ -23,10 +25,12 @@ This project is licensed under the MIT License.
 このプロジェクトはMoving Particle Simulation (MPS)法を実装しています。
 MPS法は非圧縮性流体のシミュレーションに使われるメッシュフリーの数値計算法です。
 
-C++のクラスやEigenのような外部ライブラリを用いており、特に初心者の方にとって様々なことを学んでいただけるよう設計しています。
+C++のクラスや[Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page)のような外部ライブラリを用いており、ある程度モダンな仕組みにしています。
+また、初心者の方にとって学習の材料としていただけるようドキュメントを充実させています。
 
 ## 特徴
-- C++のクラスとEigenなどの外部ライブラリの使用
+- C++のクラスの使用
+- [Eigen](https://eigen.tuxfamily.org/index.php?title=Main_Page)を利用したベクトル/行列演算
 - 詳細なドキュメント
 
 ## ビルド & 実行
