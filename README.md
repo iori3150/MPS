@@ -1,46 +1,40 @@
 # MPS: Moving Particle Simulation
 
+## Overview
+This project focuses on implementing the Moving Particle Simulation (MPS) method.
+The MPS method is a mesh-free numerical method used for simulating incompressible fluids.
 
-## Debugging
-`clang`の場合`-g`オプションでデバッグ可能です。次のようにしてコンパイルします。
-```bash
-clang++ -std=c++17 -g -I eigen-3.4.0 -c src/main.cpp -o build/main.o
-clang++ -std=c++17 -g -I eigen-3.4.0 -c src/simulation.cpp -o build/simulation.o
-clang++ -g build/main.o build/simulation.o -o build/main.exe
-```
-実行にはVSCodeのデバッグ機能を使うのが便利です。
-下準備としてCodeLLDBという拡張機能をインストールします。
+This project is designed to be educational, especially for begineers, with C++ classes and external libraries such as Eigen.
 
-![](fig/CodeLLDB.png)
+## Features
+- Usage of C++ classes and external libraries such as Eigen
+- Detailed documentation
 
-続いてこのプロジェクトフォルダの最上層に`.vscode`フォルダを作成し、その中に`launch.json`ファイルを作成します。
+## Getting Started
+To be written...
 
-![](fig/folder_structure.png)
+## Contributing
+Feel free to open issues or submit pull requests for improvements and bug fixes.
 
-`launch.json`の中に次のように記述してください。
-```json
-{
-	"version": "0.2.0",
-	"configurations": [
-    {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug main.exe",
-            "program": "${workspaceFolder}/build/main.exe",
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        }
-	]
-}
-```
-各項目の詳細については[VSCodeのHP](https://code.visualstudio.com/docs/cpp/launch-json-reference)に記載があります。
+## License
+This project is licensed under the MIT License.
 
-これで準備は完了です。
-続いて左端のツールバーから`実行とデバッグ`を選択し、`Debug main.exe`を選んでデバッグを実行します。
+## 概要
+このプロジェクトはMoving Particle Simulation (MPS)法を実装しています。
+MPS法は非圧縮性流体のシミュレーションに使われるメッシュフリーの数値計算法です。
 
-![](fig/execute_debug.png)
+C++のクラスやEigenのような外部ライブラリを用いており、特に初心者の方にとって様々なことを学んでいただけるよう設計しています。
 
-これでデバッグが開始します。
-次のようにコードのある行にブレークポイントを設置すればその行で実行が止まり、変数の中身を確認したり一行ずつ実行したりすることが可能です。
+## 特徴
+- C++のクラスとEigenなどの外部ライブラリの使用
+- 詳細なドキュメント
 
-![](fig/debug_UI.png)
+## ビルド & 実行
+[Wikiの該当ページ](https://github.com/iori3150/MPS/wiki/%E3%83%93%E3%83%AB%E3%83%89-&-%E5%AE%9F%E8%A1%8C%E6%96%B9%E6%B3%95)をご覧ください。
+
+## Contributing
+機能改善やバグ修正は大歓迎です。
+ぜひIssueやプルリクを作成してください。
+
+## ライセンス
+このプロジェクトのライセンスはMIT Licenseです。
