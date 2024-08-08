@@ -1,8 +1,7 @@
 #include "mps.hpp"
 
-#include "csv.hpp"
-
 #include <Eigen/IterativeLinearSolvers>
+#include <csv.hpp>
 #include <iostream>
 #include <queue>
 #include <spdlog/spdlog.h>
@@ -274,8 +273,7 @@ void MPS::setBoundaryCondition() {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
             pi.boundaryCondition = BoundaryCondition::Ignored;
 
-        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) <
-                   beta * n0) {
+        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {

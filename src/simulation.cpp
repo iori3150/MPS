@@ -1,7 +1,6 @@
 #include "simulation.hpp"
 
 #include "bucket.hpp"
-#include "csv.hpp"
 #include "exporter.hpp"
 #include "mps.hpp"
 #include "particle.hpp"
@@ -9,6 +8,7 @@
 #include <Eigen/Dense>
 #include <cmath>   // for fmod
 #include <cstdlib> // for std::exit
+#include <csv.hpp>
 #include <format>
 #include <fstream>
 #include <iomanip>
@@ -18,6 +18,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include <string>
+
 
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;

@@ -4,9 +4,8 @@
 # make clean 				-> remove the build directory
 # -----------------------------------------------
 
-# compiler, compiler flags, linker flags
 CXX = clang++
-CXXFLAGS = -std=c++20 -I eigen-3.4.0 -I csv-parser-2.3.0/single_include -I fkYAML-0.3.9/single_include -I spdlog/include
+CXXFLAGS = -std=c++20 -I submodules/eigen -I submodules/csv-parser/single_include -I submodules/fkYAML/single_include -I submodules/spdlog/include
 CXXFLAGS_OPENMP = -fopenmp
 LDFLAGS = -fopenmp
 
@@ -36,7 +35,18 @@ $(TARGET): $(OBJECTS)
 
 $(BUILDMODEDIR)/%.o: $(SRCDIR)/%.cpp
   # Create build directory if it doesn't exist
-	@powershell -Command "if (!(Test-Path '$(BUILDMODEDIR)')) { New-Item -ItemType Directory -Path '$(BUILDMODEDIR)' }"
+  # Mac or Linux
+	@if [ "$(shell uname)" = "Darwin" ] || [ "$(shell uname)" = "Linux" ]; then \
+		mkdir -p $(BUILDMODEDIR); \
+
+  # Windows Command Prompt
+	elif [ -n "$(ComSpec)" ]; then \ 
+	  if not exist "$(BUILDMODEDIR)" mkdir "$(BUILDMODEDIR)"; \
+
+  # Windows PowerShell
+	else \
+		powershell -Command "if (!(Test-Path '$(BUILDMODEDIR)')) { New-Item -ItemType Directory -Path '$(BUILDMODEDIR)' }"; \
+	fi
 
 ifeq ($(notdir $<),mps.cpp)
   # Compile mps.cpp with OpenMP
@@ -50,7 +60,18 @@ endif
 # Target: clean
 # ---------------------
 clean:
-	@powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)/*' }"
+  # Mac or Linux
+	@if [ "$(shell uname)" = "Darwin" ] || [ "$(shell uname)" = "Linux" ]; then \
+		rm -rf $(BUILDDIR); \
+
+  # Windows Command Prompt
+	elif [ -n "$(ComSpec)" ]; then \
+		if exist "$(BUILDDIR)" rmdir /s /q "$(BUILDDIR)"; \
+
+  # Windows PowerShell
+  else \
+		powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)/*' }"; \
+  fi
 
 # Declare 'all' and 'clean' as phony targets
 .PHONY: all clean
