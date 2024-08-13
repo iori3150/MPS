@@ -37,14 +37,14 @@ $(BUILDMODEDIR)/%.o: $(SRCDIR)/%.cpp
 ifeq ($(OS), Windows_NT)
   ifeq ($(SHELL), cmd.exe)
     # Windows Command Prompt
-    if not exist "$(BUILDMODEDIR)" mkdir "$(BUILDMODEDIR)"
+		if not exist "$(BUILDMODEDIR)" mkdir "$(BUILDMODEDIR)"
   else
     # Windows Powershell
 		powershell -Command "if (-not (Test-Path '$(BUILDMODEDIR)')) {mkdir '$(BUILDMODEDIR)'}"
   endif
 else
   # Mac or Linux
-  mkdir -p $(BUILDMODEDIR)
+	mkdir -p $(BUILDMODEDIR)
 endif
 
 ifeq ($(notdir $<),mps.cpp)
