@@ -40,7 +40,7 @@ ifeq ($(OS), Windows_NT)
     if not exist "$(BUILDMODEDIR)" mkdir "$(BUILDMODEDIR)"
   else
     # Windows Powershell
-		powershell -Command "if (-not (Test-Path '$(BUILDMODEDIR)')) { mkdir '$(BUILDMODEDIR)' }"
+		powershell -Command "if (-not (Test-Path '$(BUILDMODEDIR)')) {mkdir '$(BUILDMODEDIR)'}"
   endif
 else
   # Mac or Linux
@@ -65,7 +65,7 @@ ifeq ($(OS), Windows_NT)
 		if exist "$(BUILDDIR)" rmdir /s /q "$(BUILDDIR)"
   else
     # Windows Powershell
-		powershell -Command "if (Test-Path '$(BUILDDIR)') { Remove-Item -Recurse -Force '$(BUILDDIR)/*' }"
+		powershell -Command "if (Test-Path '$(BUILDDIR)') {Remove-Item -Recurse -Force '$(BUILDDIR)/*'}"
   endif
 else
   # Mac or Linux
