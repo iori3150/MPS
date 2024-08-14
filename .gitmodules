@@ -10,9 +10,6 @@
 [submodule "submodules/spdlog"]
 	path = submodules/spdlog
 	url = https://github.com/gabime/spdlog.git
-[submodule "submodules/easyloggingpp"]
-	path = submodules/easyloggingpp
-	url = https://github.com/abumq/easyloggingpp.git
 [submodule "submodules/argparse"]
 	path = submodules/argparse
 	url = https://github.com/p-ranav/argparse.git
