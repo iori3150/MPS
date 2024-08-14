@@ -108,7 +108,7 @@ double MPS::loadInitialState() {
     return initialTime;
 }
 
-void MPS::stepForward(const bool isTimeToExport) {
+double MPS::stepForward(const bool isTimeToExport) {
     setNeighbors();
     calcGravity();
     calcViscosity();
@@ -125,6 +125,8 @@ void MPS::stepForward(const bool isTimeToExport) {
     if (isTimeToExport) {
         setNumberDensityForDisplay();
     }
+
+    return getCourantNumber();
 }
 
 RefValues::RefValues(

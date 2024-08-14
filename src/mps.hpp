@@ -56,6 +56,8 @@ private:
     void setNeighbors();
     void checkBoundaryViolation(Particle& pi);
 
+    double getCourantNumber();
+
 public:
     Settings settings;
     std::vector<Particle> particles;
@@ -65,6 +67,5 @@ public:
     MPS(const std::filesystem::path& inputYamlPath);
 
     double loadInitialState(); // Initialize particles and return initial time
-    void stepForward(const bool isTimeToExport);
-    double getCourantNumber();
+    double stepForward(const bool isTimeToExport);
 };
