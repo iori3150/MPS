@@ -42,7 +42,7 @@ void Simulation::run(const fs::path& inputYamlPath) {
 
         time += mps.settings.dt;
 
-        mps.stepForward(isTimeToExport());
+        double courantNumber = mps.stepForward(isTimeToExport());
 
         if (isTimeToExport()) {
             exportParticles(mps.particles);
@@ -52,7 +52,7 @@ void Simulation::run(const fs::path& inputYamlPath) {
         timeStepReport(
             timeStepStartTime,
             timeStepEndTime,
-            mps.getCourantNumber(),
+            courantNumber,
             mps.debugLogCount > initialDebugLogCount
         );
 
