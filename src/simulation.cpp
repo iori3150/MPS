@@ -67,21 +67,13 @@ void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
     fs::path parentDirectory = "./results";
     fs::create_directory(parentDirectory);
 
-    const auto currentTime =
-        chrono::zoned_time{chrono::current_zone(), system_clock::now()};
-    std::string timestamp = format("{:%Y%m%d_%H%M}", currentTime);
+    const auto currentTime = chrono::zoned_time{
+        chrono::current_zone(),
+        chrono::floor<chrono::seconds>(chrono::system_clock::now())
+    };
+    std::string timestamp = format("{:%Y%m%d_%H%M%S}", currentTime);
 
     resultDirectory = parentDirectory / timestamp;
-
-    // If the result folder with the same timestamp already exists (i.e. previous
-    // simulations have run within one minute), create a new folder name by appending a
-    // number. For example, if "20240801_1002" already exists, create
-    // "20240801_1002(1)", "---(2)", "---(3)", ... until the name is unique.
-    int count = 1;
-    while (fs::exists(resultDirectory)) {
-        resultDirectory = parentDirectory / format("{}({})", timestamp, count);
-        count++;
-    }
 
     fs::create_directory(resultDirectory);
     fs::create_directory(resultDirectory / "csv");
