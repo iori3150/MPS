@@ -9,105 +9,105 @@
 
 namespace fs = std::filesystem;
 
-void check_fluid_range(std::vector<double> &x_range,
-                       std::vector<double> &y_range, double &l0, double &eps);
-bool isInside(Eigen::Vector3d &position, std::vector<double> &x_range,
-              std::vector<double> &y_range, double &eps);
+double l0      = 0.01;
+double density = 1000.0;
+std::vector<double> domainRangeX{0.0, 0.3};
+std::vector<double> domainRangeY{0.0, 0.25};
+std::vector<double> fluidRangeX{0.0, 0.1};
+std::vector<double> fluidRangeY{0.0, 0.2};
+int wallLayer      = 3;
+int dummyWallLayer = 1;
 
-int main(int argc, char **argv) {
-  std::vector<Particle> particles;
+void checkFluidRange(std::vector<double>& xRange, std::vector<double>& yRange);
+bool isInside(
+    Eigen::Vector3d& position, std::vector<double>& xRange, std::vector<double>& yRange
+);
 
-  double l0 = 0.025;
-  double eps = 0.01 * l0;
-  double density = 1000.0;
+int main() {
+    std::vector<Particle> particles;
 
-  std::vector<double> fluid_x_range{0.0, 1.0};
-  std::vector<double> fluid_y_range{0.0, 0.6};
-  check_fluid_range(fluid_x_range, fluid_y_range, l0, eps);
+    checkFluidRange(fluidRangeX, fluidRangeY);
 
-  int ix_begin = round(fluid_x_range[0] / l0) - 4;
-  int ix_end = round(fluid_x_range[1] / l0) + 4;
-  int iy_begin = round(fluid_y_range[0] / l0) - 4;
-  int iy_end = round(fluid_y_range[1] / l0) + 4;
-  for (int ix = ix_begin; ix <= ix_end; ix++) {
-    for (int iy = iy_begin; iy <= iy_end; iy++) {
-      Eigen::Vector3d pos((double)(ix)*l0, (double)iy * l0, 0.0);
-      ParticleType type = ParticleType::Ghost;
+    int allWallLayer = dummyWallLayer + wallLayer;
 
-      // dummy wall region
-      std::vector<double> x_range(2), y_range(2);
-      x_range = {-4.0 * l0, 1.0 + 4.0 * l0};
-      y_range = {-4.0 * l0, 0.6};
-      if (isInside(pos, x_range, y_range, eps))
-        type = ParticleType::DummyWall;
+    int ixBegin = round(domainRangeX[0] / l0) - allWallLayer;
+    int ixEnd   = round(domainRangeX[1] / l0) + allWallLayer;
+    int iyBegin = round(domainRangeY[0] / l0) - allWallLayer;
+    int iyEnd   = round(domainRangeY[1] / l0) + allWallLayer;
 
-      // wall region
-      x_range = {-2.0 * l0, 1.0 + 2.0 * l0};
-      y_range = {-2.0 * l0, 0.6};
-      if (isInside(pos, x_range, y_range, eps))
-        type = ParticleType::Wall;
+    for (int ix = ixBegin; ix <= ixEnd; ix++) {
+        for (int iy = iyBegin; iy <= iyEnd; iy++) {
+            Eigen::Vector3d pos((ix + 0.5) * l0, (iy + 0.5) * l0, 0.0);
+            ParticleType type = ParticleType::Ghost;
+            std::vector<double> xRange(2), yRange(2);
+            double xMax = domainRangeX[1];
+            double yMax = domainRangeY[1];
 
-      // wall region
-      x_range = {-4.0 * l0, 1.0 + 4.0 * l0};
-      y_range = {0.6 - 2.0 * l0, 0.6};
-      if (isInside(pos, x_range, y_range, eps))
-        type = ParticleType::Wall;
+            // dummy wall region
+            xRange = {-allWallLayer * l0, xMax + allWallLayer * l0};
+            yRange = {-allWallLayer * l0, yMax};
+            if (isInside(pos, xRange, yRange))
+                type = ParticleType::DummyWall;
 
-      // empty region
-      x_range = {0.0, 1.0};
-      y_range = {0.0, 0.6};
-      if (isInside(pos, x_range, y_range, eps))
-        type = ParticleType::Ghost;
+            // wall region
+            xRange = {-wallLayer * l0, xMax + wallLayer * l0};
+            yRange = {-wallLayer * l0, yMax};
+            if (isInside(pos, xRange, yRange))
+                type = ParticleType::Wall;
 
-      // fluid region
-      x_range = {0.0, 0.25};
-      y_range = {0.0, 0.50};
-      if (isInside(pos, x_range, y_range, eps))
-        type = ParticleType::Fluid;
+            // empty region
+            xRange = {0.0, xMax};
+            yRange = {0.0, yMax};
+            if (isInside(pos, xRange, yRange))
+                type = ParticleType::Ghost;
 
-      if (type != ParticleType::Ghost) {
-        Eigen::Vector3d vel = Eigen::Vector3d::Zero();
-        particles.push_back(
-            Particle(particles.size(), type, pos, vel, 0.0, density));
-      }
+            // fluid region
+            if (isInside(pos, fluidRangeX, fluidRangeY))
+                type = ParticleType::Fluid;
+
+            if (type != ParticleType::Ghost) {
+                Eigen::Vector3d vel = Eigen::Vector3d::Zero();
+                particles.push_back(Particle(particles.size(), type, pos, vel, density));
+            }
+        }
     }
-  }
 
-  Exporter exporter;
-  exporter.toCsv(fs::path("input.csv"), particles, 0.0);
-  exporter.toVtu(fs::path("input.vtu"), particles, 0.0);
+    Exporter exporter;
+    exporter.toCsv(fs::path("input.csv"), particles, 0.0);
+    exporter.toVtu(fs::path("input.vtu"), particles, 0.0);
 
-  std::cout << "Input file created successfully." << std::endl;
+    std::cout << "Input file was created successfully." << std::endl;
 }
 
-void check_fluid_range(std::vector<double> &x_range,
-                       std::vector<double> &y_range, double &l0, double &eps) {
-  std::sort(x_range.begin(), x_range.end());
-  std::sort(y_range.begin(), y_range.end());
+void checkFluidRange(std::vector<double>& xRange, std::vector<double>& yRange) {
+    double eps = 0.01 * l0;
 
-  double nx = (x_range[1] - x_range[0]) / l0;
-  if (abs(nx - std::round(nx)) > eps) {
-    std::cerr << "x_range of the fluid is not divisible by particle length."
-              << std::endl;
-    std::exit(-1);
-  }
+    std::sort(xRange.begin(), xRange.end());
+    std::sort(yRange.begin(), yRange.end());
 
-  double ny = (y_range[1] - y_range[0]) / l0;
-  if (abs(ny - std::round(ny)) > eps) {
-    std::cerr << "y_range of the fluid is not divisible by particle length."
-              << std::endl;
-    std::exit(-1);
-  }
+    double nx = (xRange[1] - xRange[0]) / l0;
+    if (abs(nx - std::round(nx)) > eps) {
+        std::cout << "ERROR: xRange of the fluid is not divisible by particle length."
+                  << std::endl;
+        std::exit(-1);
+    }
+
+    double ny = (yRange[1] - yRange[0]) / l0;
+    if (abs(ny - std::round(ny)) > eps) {
+        std::cout << "ERROR: yRange of the fluid is not divisible by particle length."
+                  << std::endl;
+        std::exit(-1);
+    }
 }
 
-bool isInside(Eigen::Vector3d &pos, std::vector<double> &x_range,
-              std::vector<double> &y_range, double &eps) {
-  std::sort(x_range.begin(), x_range.end());
-  std::sort(y_range.begin(), y_range.end());
+bool isInside(
+    Eigen::Vector3d& pos, std::vector<double>& xRange, std::vector<double>& yRange
+) {
+    double eps = 0.01 * l0;
 
-  if (((x_range[0] - eps < pos.x()) && (pos.x() < x_range[1] + eps)) &&
-      ((y_range[0] - eps < pos.y()) && (pos.y() < y_range[1] + eps)))
-    return true;
-  else
-    return false;
+    std::sort(xRange.begin(), xRange.end());
+    std::sort(yRange.begin(), yRange.end());
+
+    return (xRange[0] - eps < pos.x() && pos.x() < xRange[1] + eps) &&
+           (yRange[0] - eps < pos.y() && pos.y() < yRange[1] + eps);
 }

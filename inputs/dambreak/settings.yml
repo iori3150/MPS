@@ -1,6 +1,10 @@
+# NOTE
+# - Numbers read as a double in the program must be written to one decimal place.
+# - Exponential notation must be written to one decimal place.
+
 # computational conditions
 dim: 2
-particle distance: 0.025
+particle distance: 0.01
 dt: 0.001
 finish time: 2.0
 output interval: 0.05
@@ -8,8 +12,8 @@ CFL condition: 0.3
 # numPhysicalCores: 4
 
 # domain
-domain range X: [-0.1, 1.1]
-domain range Y: [-0.1, 2.0]
+domain range X: [-0.1, 0.4]
+domain range Y: [-0.1, 0.35]
 domain range Z: [0.0, 0.0]
 
 # physical properties

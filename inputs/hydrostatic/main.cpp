@@ -23,7 +23,7 @@ bool isInside(
     Eigen::Vector3d& position, std::vector<double>& xRange, std::vector<double>& yRange
 );
 
-int main(int argc, char** argv) {
+int main() {
     std::vector<Particle> particles;
 
     checkFluidRange(fluidRangeX, fluidRangeY);
