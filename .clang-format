@@ -1,5 +1,4 @@
 ---
-# List in alphabetical order.
 AccessModifierOffset: '-4'
 AlignAfterOpenBracket: 'BlockIndent'
 AlignConsecutiveAssignments: 'Consecutive'
