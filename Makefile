@@ -5,7 +5,13 @@
 # -----------------------------------------------
 
 CXX = clang++
-CXXFLAGS = -std=c++20 -I submodules/eigen -I submodules/csv-parser/single_include -I submodules/fkYAML/single_include -I submodules/spdlog/include -I submodules/argparse/include
+INCLUDES = \
+  -I submodules/eigen\
+  -I submodules/csv-parser/single_include\
+  -I submodules/fkYAML/single_include\
+  -I submodules/spdlog/include\
+  -I submodules/argparse/include
+CXXFLAGS = -std=c++20 $(INCLUDES)
 CXXFLAGS_OPENMP = -fopenmp
 LDFLAGS = -fopenmp
 
@@ -33,20 +39,22 @@ $(TARGET): $(OBJECTS)
   # Link object files to create executable
 	$(CXX) $(LDFLAGS) $(OBJECTS) -o $@
 
-$(BUILDMODEDIR)/%.o: $(SRCDIR)/%.cpp
+# Ensure the build directory exists
+$(BUILDMODEDIR):
 ifeq ($(OS), Windows_NT)
   ifeq ($(SHELL), cmd.exe)
     # Windows Command Prompt
-		if not exist "$(BUILDMODEDIR)" mkdir "$(BUILDMODEDIR)"
+		mkdir $(BUILDMODEDIR)
   else
     # Windows Powershell
-		powershell -Command "if (-not (Test-Path '$(BUILDMODEDIR)')) {mkdir '$(BUILDMODEDIR)'}"
+		powershell -Command "mkdir $(BUILDMODEDIR)"
   endif
 else
   # Mac or Linux
 	mkdir -p $(BUILDMODEDIR)
 endif
 
+$(BUILDMODEDIR)/%.o: $(SRCDIR)/%.cpp | $(BUILDMODEDIR)
 ifeq ($(notdir $<),mps.cpp)
   # Compile mps.cpp with OpenMP
 	$(CXX) $(CXXFLAGS) $(CXXFLAGS_OPENMP) -c $< -o $@
