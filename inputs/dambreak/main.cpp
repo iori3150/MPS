@@ -15,7 +15,7 @@ std::vector<double> domainRangeX{0.0, 0.3};
 std::vector<double> domainRangeY{0.0, 0.25};
 std::vector<double> fluidRangeX{0.0, 0.1};
 std::vector<double> fluidRangeY{0.0, 0.2};
-int wallLayer      = 3;
+int wallLayer      = 2;
 int dummyWallLayer = 1;
 
 void checkFluidRange(std::vector<double>& xRange, std::vector<double>& yRange);
