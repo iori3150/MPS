@@ -1,6 +1,6 @@
 # MPS: Moving Particle Simulation
 
-![](fig/dambreak.gif)
+![](images/dambreak.gif)
 
 ## Overview
 This project focuses on implementing the Moving Particle Simulation (MPS) method.
