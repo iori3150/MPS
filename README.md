@@ -1,5 +1,7 @@
 # MPS: Moving Particle Simulation
 
+![](fig/dambreak.gif)
+
 ## Overview
 This project focuses on implementing the Moving Particle Simulation (MPS) method.
 The MPS method is a mesh-free numerical method used for simulating incompressible fluids.
