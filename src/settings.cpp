@@ -61,6 +61,12 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         compressibility = root["compressibility"].get_value<double>();
         relaxationCoefficientForPressure =
             root["relaxation coefficient for pressure"].get_value<double>();
+        higherOrderSourceTerm.on =
+            root["higher order source term"]["on"].get_value<bool>();
+        if (higherOrderSourceTerm.on) {
+            higherOrderSourceTerm.gamma =
+                root["higher order source term"]["gamma"].get_value<double>();
+        }
 
         collisionDistance =
             root["collision distance ratio"].get_value<double>() * particleDistance;

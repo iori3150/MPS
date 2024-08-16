@@ -67,6 +67,10 @@ public:
     // pressure calculation
     double compressibility;
     double relaxationCoefficientForPressure;
+    struct {
+        bool on;
+        double gamma;
+    } higherOrderSourceTerm;
 
     // collision
     double collisionDistance;
