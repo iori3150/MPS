@@ -103,7 +103,7 @@ double MPS::loadInitialState() {
 
     // Set the particle number density at the beginning so that we can check if the
     // initial particle placement is appropriate.
-    setNumberDensityForDisplay();
+    setNumberDensity();
 
     return initialTime;
 }
@@ -122,8 +122,8 @@ double MPS::stepForward(const bool isTimeToExport) {
     calcPressureGradient();
     moveParticlesWithPressureGradient();
 
-    if (isTimeToExport) {
-        setNumberDensityForDisplay();
+    if (isTimeToExport || settings.higherOrderSourceTerm.on) {
+        setNumberDensity();
     }
 
     return getCourantNumber();
@@ -243,13 +243,6 @@ void MPS::collision() {
                     double positionImpulse = depth * reducedMass;
                     pi.position -= positionImpulse * invMassi * normal;
                     pj.position += positionImpulse * invMassj * normal;
-
-                    // spdlog::debug(
-                    //     "Collision between particles {} and {} occurred.",
-                    //     std::to_string(pi.id),
-                    //     std::to_string(pj.id)
-                    // );
-                    // debugLogCount++;
                 }
             }
         }
@@ -285,15 +278,40 @@ void MPS::setBoundaryCondition() {
 }
 
 void MPS::setSourceTerm() {
-    const double re    = settings.effectiveRadius.pressure;
-    const double n0    = refValues.pressure.initialNumberDensity;
-    const double gamma = settings.relaxationCoefficientForPressure;
+    const double re = settings.effectiveRadius.pressure;
+    const double n0 = refValues.pressure.initialNumberDensity;
+    const double dt = settings.dt;
 
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition == BoundaryCondition::Inner) {
-            sourceTerm[pi.id] = gamma * (1.0 / (settings.dt * settings.dt)) *
-                                ((getNumberDensity(pi, re) - n0) / n0);
+            if (settings.higherOrderSourceTerm.on) {
+                const double gamma = settings.higherOrderSourceTerm.gamma;
+                sourceTerm[pi.id] =
+                    gamma * (1.0 / (dt * dt)) * (pi.numberDensityRatio - 1.0);
+
+                for (auto& neighbor : pi.neighbors) {
+                    const Particle& pj = particles[neighbor.id];
+
+                    if (pj.boundaryCondition == BoundaryCondition::Ignored)
+                        continue;
+
+                    const Eigen::Vector3d& r_ij = pj.position - pi.position;
+                    const Eigen::Vector3d& u_ij = pj.velocity - pi.velocity;
+                    const double& dist          = neighbor.distance;
+
+                    if (dist < re) {
+                        sourceTerm[pi.id] -= (1.0 / (n0 * dt)) * re * r_ij.dot(u_ij) /
+                                             (dist * dist * dist);
+                    }
+                }
+
+            } else {
+                const double gamma = settings.relaxationCoefficientForPressure;
+                const double n     = getNumberDensity(pi, re);
+
+                sourceTerm[pi.id] = gamma * (1.0 / (dt * dt)) * (n - n0) / n0;
+            }
 
         } else {
             sourceTerm[pi.id] = 0.0;
@@ -307,7 +325,7 @@ void MPS::setMatrix() {
     const double re     = settings.effectiveRadius.pressure;
     const double n0     = refValues.pressure.initialNumberDensity;
     const double lambda = refValues.pressure.lambda;
-    const double a      = 2.0 * settings.dim / (n0 * lambda);
+    const double D      = settings.dim;
     for (auto& pi : particles) {
         if (pi.boundaryCondition != BoundaryCondition::Inner)
             continue;
@@ -321,9 +339,11 @@ void MPS::setMatrix() {
                 continue;
 
             if (dist < re) {
-                double coefficient_ij = a * weight(dist, re) / pi.density;
-                matrixTriplets.emplace_back(pi.id, pj.id, -1.0 * coefficient_ij);
-                coefficient_ii += coefficient_ij;
+                double a = (2.0 * D / (lambda * n0)) * weight(dist, re) / pi.density;
+                double coefficient_ij = -a;
+                coefficient_ii += a;
+
+                matrixTriplets.emplace_back(pi.id, pj.id, coefficient_ij);
             }
         }
 
@@ -549,11 +569,13 @@ void MPS::setNeighbors() {
     }
 }
 
-// Set the number density at the final position so that users can visually comprehend how
-// dense/sparse the particles are.
-// This function should only be called when it's time to save, because setting neighbors
-// and number density is actually unnecessary for the simulation.
-void MPS::setNumberDensityForDisplay() {
+// Set the number density at the final position.
+// This function should be called only in the following cases.
+// 1. When the higher order source term for pressure calculation is on; this value will be
+// used in the pressure calculation for the next time step.
+// 2. When it's time to save; output the this value so that the correct number density can
+// be displayed.
+void MPS::setNumberDensity() {
     setNeighbors();
 
 #pragma omp parallel for

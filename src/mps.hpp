@@ -52,7 +52,7 @@ private:
     void moveParticlesWithPressureGradient();
 
     double getNumberDensity(const Particle& pi, const double& re);
-    void setNumberDensityForDisplay();
+    void setNumberDensity();
     void setNeighbors();
     void checkBoundaryViolation(Particle& pi);
 
