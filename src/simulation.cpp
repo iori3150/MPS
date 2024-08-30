@@ -64,18 +64,12 @@ void Simulation::run(const fs::path& inputYamlPath) {
 }
 
 void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
-    fs::path parentDirectory = "./results";
-    fs::create_directory(parentDirectory);
-
-    const auto currentTime = chrono::zoned_time{
-        chrono::current_zone(),
-        chrono::floor<chrono::seconds>(chrono::system_clock::now())
-    };
-    std::string timestamp = format("{:%Y%m%d_%H%M%S}", currentTime);
-
-    resultDirectory = parentDirectory / timestamp;
-
+    resultDirectory = inputYamlPath.parent_path() / "result";
+    if (fs::exists(resultDirectory)) {
+        fs::remove_all(resultDirectory);
+    }
     fs::create_directory(resultDirectory);
+
     fs::create_directory(resultDirectory / "csv");
     fs::create_directory(resultDirectory / "vtu");
 

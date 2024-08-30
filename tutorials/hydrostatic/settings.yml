@@ -4,21 +4,21 @@
 
 # computational conditions
 dim: 2
-particle distance: 0.004
-dt: 0.0005
-finish time: 2.0
-output interval: 0.025
-CFL condition: 0.3
+particle distance: 0.005
+dt: 0.001
+finish time: 1.0
+output interval: 0.02
+CFL condition: 0.2
 # numPhysicalCores: 4
 
 # domain
-domain range X: [-0.1, 1.1]
-domain range Y: [-0.1, 0.5]
+domain range X: [-1.0, 1.0]
+domain range Y: [-1.0, 1.0]
 domain range Z: [0.0, 0.0]
 
 # physical properties
 density: 1000.0
-kinematic viscosity: 1.0e-06 # If we don't write to one decimal place, it will be recognized as a string of characters.
+kinematic viscosity: 1.0e-06
 
 # gravity
 gravity: [0.0, -9.8, 0.0]
@@ -44,4 +44,4 @@ collision distance ratio: 0.5 # ratio to particle distance
 coefficient of restitution: 0.2
 
 # i/o
-inputCsvPath: ./input.csv # relative path to this settings.yml
+inputCsvPath: inputs/dambreak_fine/input.csv
