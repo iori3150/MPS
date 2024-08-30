@@ -65,12 +65,15 @@ public:
     double thresholdForSurfaceDetection;
 
     // pressure calculation
-    double compressibility;
-    double relaxationCoefficientForPressure;
+    struct {
+        bool on;
+        double compressibility;
+    } pseudo_compressibility;
     struct {
         bool on;
         double gamma;
     } higherOrderSourceTerm;
+    double relaxationCoefficientForPressure;
 
     // collision
     double collisionDistance;

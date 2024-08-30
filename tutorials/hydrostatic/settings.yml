@@ -33,11 +33,14 @@ effective radius ratio:
 threshold for surface detection: 0.97
 
 # pressure calculation
-compressibility: 0.45e-09
+pressure stabilization:
+  pseudo compressibility:
+    on: True
+    compressibility: 0.45e-09
+  higher order source term:
+    on: False
+    gamma: 1.0e-03
 relaxation coefficient for pressure: 0.2
-higher order source term:
-  on: True
-  gamma: 1.0e-03
 
 # collision
 collision distance ratio: 0.5 # ratio to particle distance
