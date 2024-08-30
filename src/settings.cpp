@@ -73,7 +73,6 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         coefficientOfRestitution = root["coefficient of restitution"].get_value<double>();
 
         inputCsvPath = root["inputCsvPath"].get_value<std::string>();
-        inputCsvPath = inputYamlPath.parent_path() / inputCsvPath;
 
     } catch (const fkyaml::exception& e) {
         spdlog::error(e.what());
