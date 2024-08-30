@@ -326,6 +326,7 @@ void MPS::setMatrix() {
     const double n0     = refValues.pressure.initialNumberDensity;
     const double lambda = refValues.pressure.lambda;
     const double D      = settings.dim;
+
     for (auto& pi : particles) {
         if (pi.boundaryCondition != BoundaryCondition::Inner)
             continue;
@@ -340,14 +341,16 @@ void MPS::setMatrix() {
 
             if (dist < re) {
                 double a = (2.0 * D / (lambda * n0)) * weight(dist, re) / pi.density;
-                double coefficient_ij = -a;
-                coefficient_ii += a;
 
-                matrixTriplets.emplace_back(pi.id, pj.id, coefficient_ij);
+                coefficient_ii += a;
+                matrixTriplets.emplace_back(pi.id, pj.id, -a);
             }
         }
 
-        coefficient_ii += settings.compressibility / (settings.dt * settings.dt);
+        if (settings.pseudo_compressibility.on) {
+            const double alpha = settings.pseudo_compressibility.compressibility;
+            coefficient_ii += alpha / (settings.dt * settings.dt);
+        }
         matrixTriplets.emplace_back(pi.id, pi.id, coefficient_ii);
     }
 

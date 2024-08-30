@@ -58,15 +58,25 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         thresholdForSurfaceDetection =
             root["threshold for surface detection"].get_value<double>();
 
-        compressibility = root["compressibility"].get_value<double>();
-        relaxationCoefficientForPressure =
-            root["relaxation coefficient for pressure"].get_value<double>();
+        pseudo_compressibility.on =
+            root["pressure stabilization"]["pseudo compressibility"]["on"]
+                .get_value<bool>();
+        if (pseudo_compressibility.on) {
+            pseudo_compressibility.compressibility =
+                root["pressure stabilization"]["pseudo compressibility"]
+                    ["compressibility"]
+                        .get_value<double>();
+        }
         higherOrderSourceTerm.on =
-            root["higher order source term"]["on"].get_value<bool>();
+            root["pressure stabilization"]["higher order source term"]["on"]
+                .get_value<bool>();
         if (higherOrderSourceTerm.on) {
             higherOrderSourceTerm.gamma =
-                root["higher order source term"]["gamma"].get_value<double>();
+                root["pressure stabilization"]["higher order source term"]["gamma"]
+                    .get_value<double>();
         }
+        relaxationCoefficientForPressure =
+            root["relaxation coefficient for pressure"].get_value<double>();
 
         collisionDistance =
             root["collision distance ratio"].get_value<double>() * particleDistance;

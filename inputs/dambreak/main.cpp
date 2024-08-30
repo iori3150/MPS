@@ -76,7 +76,7 @@ int main() {
     exporter.toCsv(fs::path("input.csv"), particles, 0.0);
     exporter.toVtu(fs::path("input.vtu"), particles, 0.0);
 
-    std::cout << "Input file was created successfully." << std::endl;
+    std::cout << "Input file was successfully created." << std::endl;
 }
 
 void checkFluidRange(std::vector<double>& xRange, std::vector<double>& yRange) {

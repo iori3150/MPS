@@ -6,7 +6,7 @@
             "request": "launch",
             "name": "Debug main.exe",
             "program": "${workspaceFolder}/build/debug/main.exe",
-            "args": [],
+            "args": ["-s", "${workspaceFolder}/tutorials/dambreak/settings.yml"],
             "cwd": "${workspaceFolder}",
         }
 	]
