@@ -1,0 +1,51 @@
+# NOTE
+# - Numbers read as a double in the program must be written to one decimal place.
+# - Exponential notation must be written to one decimal place.
+
+# computational conditions
+dim: 2
+particle distance: 0.005
+dt: 0.001
+finish time: 1.0
+output interval: 0.01
+CFL condition: 0.2
+# numPhysicalCores: 4
+
+# domain
+domain range X: [-1.0, 1.0]
+domain range Y: [-1.0, 1.0]
+domain range Z: [0.0, 0.0]
+
+# physical properties
+density: 1000.0
+kinematic viscosity: 1.0e-06
+
+# gravity
+gravity: [0.0, -9.8, 0.0]
+
+# effective radius (ratio to the particle distance)
+effective radius ratio:
+  pressure: 3.1
+  viscosity: 3.1
+  surface detection: 3.1
+
+# surface detection
+threshold for surface detection: 0.97
+
+# pressure calculation
+pressure stabilization:
+  pseudo compressibility:
+    on: False
+    compressibility: 0.45e-09
+  higher order source term:
+    on: False
+    gamma: 1.0e-03
+relaxation coefficient for pressure: 1.0
+
+# collision
+collision distance ratio: 0.5 # ratio to particle distance
+coefficient of restitution: 0.2
+
+# i/o
+# inputCsvPath: ./input.csv # relative path to this settings.yml
+inputCsvPath: inputs/hydrostatic/input.csv
