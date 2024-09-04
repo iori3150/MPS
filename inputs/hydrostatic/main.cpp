@@ -15,8 +15,8 @@ std::vector<double> domainRangeX{0.0, 0.2};
 std::vector<double> domainRangeY{0.0, 0.35};
 std::vector<double> fluidRangeX{0.0, 0.2};
 std::vector<double> fluidRangeY{0.0, 0.3};
-int wallLayer      = 2;
-int dummyWallLayer = 1;
+int wallLayer      = 1;
+int dummyWallLayer = 2;
 
 void checkFluidRange(std::vector<double>& xRange, std::vector<double>& yRange);
 bool isInside(
