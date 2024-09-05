@@ -343,12 +343,14 @@ void MPS::setMatrix() {
                 double a = (2.0 * D / (lambda * n0)) * weight(dist, re) / pi.density;
 
                 coefficient_ii += a;
-                matrixTriplets.emplace_back(pi.id, pj.id, -a);
+                if (pj.boundaryCondition == BoundaryCondition::Inner) {
+                    matrixTriplets.emplace_back(pi.id, pj.id, -a);
+                }
             }
         }
 
-        if (settings.pseudo_compressibility.on) {
-            const double alpha = settings.pseudo_compressibility.compressibility;
+        if (settings.quasiCompressibility.on) {
+            const double alpha = settings.quasiCompressibility.compressibility;
             coefficient_ii += alpha / (settings.dt * settings.dt);
         }
         matrixTriplets.emplace_back(pi.id, pi.id, coefficient_ii);
@@ -413,11 +415,52 @@ void MPS::ensureDirichletBoundaryConnection() {
 }
 
 void MPS::solvePoissonEquation() {
-    Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>> solver;
+    if (coefficientMatrix.isApprox(coefficientMatrix.transpose())) {
+        // std::cout << "Matrix is symmetric." << std::endl;
+    } else {
+        for (int i = 0; i < coefficientMatrix.rows(); ++i) {
+            for (int j = i + 1; j < coefficientMatrix.cols(); ++j) {
+                if (std::abs(
+                        coefficientMatrix.coeff(i, j) - coefficientMatrix.coeff(j, i)
+                    ) > 1.0e-10) {
+                    std::cout << "Matrix is not symmetric at (" << i << ", " << j << "): "
+                              << "A(" << i << ", " << j
+                              << ") = " << coefficientMatrix.coeff(i, j) << ", A(" << j
+                              << ", " << i << ") = " << coefficientMatrix.coeff(j, i)
+                              << std::endl;
+                    std::cout << i << ": type=" << static_cast<int>(particles[i].type)
+                              << " BC="
+                              << static_cast<int>(particles[i].boundaryCondition)
+                              << std::endl;
+                    std::cout << j << ": type=" << static_cast<int>(particles[j].type)
+                              << " BC="
+                              << static_cast<int>(particles[j].boundaryCondition)
+                              << std::endl;
+                    std::exit(1);
+                }
+            }
+        }
+    }
+
+    // Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+    // solver.analyzePattern(coefficientMatrix); // パターン解析
+    // solver.factorize(coefficientMatrix);      // LU分解
+    // if (solver.info() != Eigen::Success) {
+    //     spdlog::error("Factorization failed.");
+    // }
+
+    Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> solver;
     solver.compute(coefficientMatrix);
+
+    // Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>> solver;
+    // solver.compute(coefficientMatrix);
     Eigen::VectorXd pressures = solver.solve(sourceTerm);
+    // std::cout << "#iterations:     " << solver.iterations() << std::endl;
+    // std::cout << "estimated error: " << solver.error() << std::endl;
+    pressures = solver.solve(sourceTerm);
+
     if (solver.info() != Eigen::Success) {
-        spdlog::error("Pressure calculation failed.");
+        // spdlog::error("Pressure calculation failed.");
     }
 
 #pragma omp parallel for
@@ -519,6 +562,9 @@ double MPS::getCourantNumber() {
             std::to_string(maxCourantNumber)
         );
         debugLogCount++;
+    }
+    if (maxCourantNumber > 1.0) {
+        spdlog::error("Courant number is larger than 1.0. Exiting Simulation.");
     }
 
     return maxCourantNumber;
