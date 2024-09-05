@@ -58,14 +58,13 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         thresholdForSurfaceDetection =
             root["threshold for surface detection"].get_value<double>();
 
-        pseudo_compressibility.on =
-            root["pressure stabilization"]["pseudo compressibility"]["on"]
-                .get_value<bool>();
-        if (pseudo_compressibility.on) {
-            pseudo_compressibility.compressibility =
-                root["pressure stabilization"]["pseudo compressibility"]
-                    ["compressibility"]
-                        .get_value<double>();
+        quasiCompressibility.on =
+            root["pressure stabilization"]["quasi compressibility"]["on"].get_value<bool>(
+            );
+        if (quasiCompressibility.on) {
+            quasiCompressibility.compressibility =
+                root["pressure stabilization"]["quasi compressibility"]["compressibility"]
+                    .get_value<double>();
         }
         higherOrderSourceTerm.on =
             root["pressure stabilization"]["higher order source term"]["on"]

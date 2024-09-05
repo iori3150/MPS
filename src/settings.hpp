@@ -68,7 +68,7 @@ public:
     struct {
         bool on;
         double compressibility;
-    } pseudo_compressibility;
+    } quasiCompressibility;
     struct {
         bool on;
         double gamma;

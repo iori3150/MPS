@@ -349,8 +349,8 @@ void MPS::setMatrix() {
             }
         }
 
-        if (settings.pseudo_compressibility.on) {
-            const double alpha = settings.pseudo_compressibility.compressibility;
+        if (settings.quasiCompressibility.on) {
+            const double alpha = settings.quasiCompressibility.compressibility;
             coefficient_ii += alpha / (settings.dt * settings.dt);
         }
         matrixTriplets.emplace_back(pi.id, pi.id, coefficient_ii);
