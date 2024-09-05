@@ -1,5 +1,4 @@
 result
 build
 tutorials
-!tutorials/*/
-!tutorials/*/settings.yml
+!tutorials/dambreak/settings.yml
