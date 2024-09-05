@@ -34,7 +34,7 @@ threshold for surface detection: 0.97
 
 # pressure calculation
 pressure stabilization:
-  pseudo compressibility:
+  quasi compressibility:
     on: True
     compressibility: 0.45e-09
   higher order source term:
