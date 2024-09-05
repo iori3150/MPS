@@ -307,10 +307,13 @@ void MPS::setSourceTerm() {
                 }
 
             } else {
-                const double gamma = settings.relaxationCoefficientForPressure;
-                const double n     = getNumberDensity(pi, re);
+                const double n    = getNumberDensity(pi, re);
+                sourceTerm[pi.id] = (1.0 / (dt * dt)) * (n - n0) / n0;
 
-                sourceTerm[pi.id] = gamma * (1.0 / (dt * dt)) * (n - n0) / n0;
+                if (settings.relaxationCoefficient.on) {
+                    const double gamma = settings.relaxationCoefficient.gamma;
+                    sourceTerm[pi.id] *= gamma;
+                }
             }
 
         } else {

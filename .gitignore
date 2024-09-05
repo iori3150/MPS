@@ -1,2 +1,5 @@
 result
 build
+tutorials
+!tutorials/*/
+!tutorials/*/settings.yml

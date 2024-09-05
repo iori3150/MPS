@@ -58,6 +58,14 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         thresholdForSurfaceDetection =
             root["threshold for surface detection"].get_value<double>();
 
+        relaxationCoefficient.on =
+            root["pressure stabilization"]["relaxation coefficient"]["on"]
+                .get_value<bool>();
+        if (relaxationCoefficient.on) {
+            relaxationCoefficient.gamma =
+                root["pressure stabilization"]["relaxation coefficient"]["gamma"]
+                    .get_value<double>();
+        }
         quasiCompressibility.on =
             root["pressure stabilization"]["quasi compressibility"]["on"].get_value<bool>(
             );
@@ -74,8 +82,10 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
                 root["pressure stabilization"]["higher order source term"]["gamma"]
                     .get_value<double>();
         }
-        relaxationCoefficientForPressure =
-            root["relaxation coefficient for pressure"].get_value<double>();
+        if (higherOrderSourceTerm.on && relaxationCoefficient.on) {
+            throw std::runtime_error("Higher Order Source Term and Relaxation "
+                                     "Coefficient cannot be on at the same time.");
+        }
 
         collisionDistance =
             root["collision distance ratio"].get_value<double>() * particleDistance;
@@ -84,6 +94,8 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         inputCsvPath = root["inputCsvPath"].get_value<std::string>();
 
     } catch (const fkyaml::exception& e) {
+        spdlog::error(e.what());
+    } catch (const std::runtime_error& e) {
         spdlog::error(e.what());
     }
 }

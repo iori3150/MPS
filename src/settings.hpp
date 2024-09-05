@@ -73,7 +73,10 @@ public:
         bool on;
         double gamma;
     } higherOrderSourceTerm;
-    double relaxationCoefficientForPressure;
+    struct {
+        bool on;
+        double gamma;
+    } relaxationCoefficient;
 
     // collision
     double collisionDistance;
