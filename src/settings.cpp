@@ -2,12 +2,9 @@
 
 #include <algorithm>
 #include <fkYAML/node.hpp>
-#include <format>
 #include <fstream>
 #include <iostream>
 #include <spdlog/spdlog.h>
-
-using std::format;
 
 void Settings::load(const std::filesystem::path& inputYamlPath) {
     std::ifstream ifs(inputYamlPath);

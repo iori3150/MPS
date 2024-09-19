@@ -34,13 +34,15 @@ threshold for surface detection: 0.97
 
 # pressure calculation
 pressure stabilization:
-  pseudo compressibility:
+  relaxation coefficient:
+    on: False
+    gamma: 0.2
+  quasi compressibility:
     on: False
     compressibility: 0.45e-09
   higher order source term:
     on: False
     gamma: 1.0e-03
-relaxation coefficient for pressure: 1.0
 
 # collision
 collision distance ratio: 0.5 # ratio to particle distance

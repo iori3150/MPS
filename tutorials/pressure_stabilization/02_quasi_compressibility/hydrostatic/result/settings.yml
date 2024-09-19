@@ -38,8 +38,8 @@ pressure stabilization:
     on: False
     gamma: 0.2
   quasi compressibility:
-    on: False
-    compressibility: 0.45e-09
+    on: True
+    compressibility: 4.0e-09
   higher order source term:
     on: False
     gamma: 1.0e-03

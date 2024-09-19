@@ -2,6 +2,7 @@
 
 #include <Eigen/IterativeLinearSolvers>
 #include <csv.hpp>
+#include <format>
 #include <iostream>
 #include <queue>
 #include <spdlog/spdlog.h>
@@ -219,11 +220,13 @@ void MPS::collision() {
         if (pi.type != ParticleType::Fluid)
             continue;
 
+        pi.collisionImpulse.setZero();
+
         for (auto& neighbor : pi.neighbors) {
             Particle& pj = particles[neighbor.id];
             double& dist = neighbor.distance;
 
-            if (pj.type == ParticleType::Fluid && pj.id >= pi.id)
+            if (pj.type == ParticleType::Fluid && pj.id > pi.id)
                 continue;
 
             if (dist < settings.collisionDistance) {
@@ -236,15 +239,17 @@ void MPS::collision() {
                 if (relativeVelocity < 0.0) {
                     double impulse = -(1.0 + settings.coefficientOfRestitution) *
                                      relativeVelocity * reducedMass;
-                    pi.velocity -= impulse * invMassi * normal;
-                    pj.velocity += impulse * invMassj * normal;
-
-                    double depth           = settings.collisionDistance - dist;
-                    double positionImpulse = depth * reducedMass;
-                    pi.position -= positionImpulse * invMassi * normal;
-                    pj.position += positionImpulse * invMassj * normal;
+                    pi.collisionImpulse -= impulse * normal;
+                    pj.collisionImpulse += impulse * normal;
                 }
             }
+        }
+    }
+
+#pragma omp parallel for
+    for (auto& pi : particles) {
+        if (pi.type == ParticleType::Fluid) {
+            pi.velocity += pi.collisionImpulse * pi.inverseDensity();
         }
     }
 }
@@ -268,13 +273,24 @@ void MPS::setBoundaryCondition() {
         if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall) {
             pi.boundaryCondition = BoundaryCondition::Ignored;
 
-        } else if (getNumberDensity(pi, settings.effectiveRadius.surfaceDetection) < beta * n0) {
+        } else if (isSurfaceParticle(pi)) {
             pi.boundaryCondition = BoundaryCondition::Surface;
 
         } else {
             pi.boundaryCondition = BoundaryCondition::Inner;
         }
     }
+}
+
+bool MPS::isSurfaceParticle(Particle& pi) {
+    const double n    = getNumberDensity(pi, settings.effectiveRadius.surfaceDetection);
+    const double n0   = refValues.surfaceDetection.initialNumberDensity;
+    const double beta = settings.thresholdForSurfaceDetection;
+
+    if (n < beta * n0)
+        return true;
+    else
+        return false;
 }
 
 void MPS::setSourceTerm() {
@@ -285,30 +301,41 @@ void MPS::setSourceTerm() {
 #pragma omp parallel for
     for (auto& pi : particles) {
         if (pi.boundaryCondition == BoundaryCondition::Inner) {
-            if (settings.higherOrderSourceTerm.on) {
-                const double gamma = settings.higherOrderSourceTerm.gamma;
-                sourceTerm[pi.id] =
-                    gamma * (1.0 / (dt * dt)) * (pi.numberDensityRatio - 1.0);
+            sourceTerm[pi.id] = 0.0;
 
+            if (settings.higherOrderSourceTerm.on) {
+                // Higher Order Source Term
+                // ∇^2 p
+                // = (ρ/n0*dt) * Σ (re/|r_ij|^3) r_ij*u_ij - γ(ρ/dt^2)(nk - n0)/n0
+
+                // (ρ/n0*dt) * Σ (re/|r_ij|^3) r_ij * u_ij
                 for (auto& neighbor : pi.neighbors) {
                     const Particle& pj = particles[neighbor.id];
 
-                    if (pj.boundaryCondition == BoundaryCondition::Ignored)
-                        continue;
+                    // No skipping dammy walls because this is originally number density
+                    // calculation
 
                     const Eigen::Vector3d& r_ij = pj.position - pi.position;
                     const Eigen::Vector3d& u_ij = pj.velocity - pi.velocity;
                     const double& dist          = neighbor.distance;
 
                     if (dist < re) {
-                        sourceTerm[pi.id] -= (1.0 / (n0 * dt)) * re * r_ij.dot(u_ij) /
-                                             (dist * dist * dist);
+                        // sourceTerm[pi.id] += (pi.density / dt) * (2.0 / n0) *
+                        //                      u_ij.dot(r_ij) * weight(dist, re) /
+                        //                      (dist * dist);
+                        sourceTerm[pi.id] -= (pi.density / (n0 * dt)) *
+                                             (re / (dist * dist * dist)) * r_ij.dot(u_ij);
                     }
                 }
 
+                // -γ(ρ/dt^2)(nk - n0)/n0
+                double gamma = settings.higherOrderSourceTerm.gamma;
+                sourceTerm[pi.id] -=
+                    gamma * (pi.density / (dt * dt)) * (pi.numberDensityRatio - 1.0);
+
             } else {
                 const double n    = getNumberDensity(pi, re);
-                sourceTerm[pi.id] = (1.0 / (dt * dt)) * (n - n0) / n0;
+                sourceTerm[pi.id] = -(pi.density / (dt * dt)) * (n - n0) / n0;
 
                 if (settings.relaxationCoefficient.on) {
                     const double gamma = settings.relaxationCoefficient.gamma;
@@ -343,18 +370,18 @@ void MPS::setMatrix() {
                 continue;
 
             if (dist < re) {
-                double a = (2.0 * D / (lambda * n0)) * weight(dist, re) / pi.density;
+                double a = (2.0 * D / (lambda * n0)) * weight(dist, re);
 
-                coefficient_ii += a;
+                coefficient_ii -= a;
                 if (pj.boundaryCondition == BoundaryCondition::Inner) {
-                    matrixTriplets.emplace_back(pi.id, pj.id, -a);
+                    matrixTriplets.emplace_back(pi.id, pj.id, a);
                 }
             }
         }
 
         if (settings.quasiCompressibility.on) {
             const double alpha = settings.quasiCompressibility.compressibility;
-            coefficient_ii += alpha / (settings.dt * settings.dt);
+            coefficient_ii -= alpha * pi.density / (settings.dt * settings.dt);
         }
         matrixTriplets.emplace_back(pi.id, pi.id, coefficient_ii);
     }
@@ -418,57 +445,52 @@ void MPS::ensureDirichletBoundaryConnection() {
 }
 
 void MPS::solvePoissonEquation() {
-    if (coefficientMatrix.isApprox(coefficientMatrix.transpose())) {
-        // std::cout << "Matrix is symmetric." << std::endl;
-    } else {
-        for (int i = 0; i < coefficientMatrix.rows(); ++i) {
-            for (int j = i + 1; j < coefficientMatrix.cols(); ++j) {
-                if (std::abs(
-                        coefficientMatrix.coeff(i, j) - coefficientMatrix.coeff(j, i)
-                    ) > 1.0e-10) {
-                    std::cout << "Matrix is not symmetric at (" << i << ", " << j << "): "
-                              << "A(" << i << ", " << j
-                              << ") = " << coefficientMatrix.coeff(i, j) << ", A(" << j
-                              << ", " << i << ") = " << coefficientMatrix.coeff(j, i)
-                              << std::endl;
-                    std::cout << i << ": type=" << static_cast<int>(particles[i].type)
-                              << " BC="
-                              << static_cast<int>(particles[i].boundaryCondition)
-                              << std::endl;
-                    std::cout << j << ": type=" << static_cast<int>(particles[j].type)
-                              << " BC="
-                              << static_cast<int>(particles[j].boundaryCondition)
-                              << std::endl;
-                    std::exit(1);
+    auto& A            = coefficientMatrix;
+    Eigen::VectorXd& b = sourceTerm;
+
+    // Check the symmetry of the matrix
+    if (!A.isApprox(A.transpose())) {
+        for (int i = 0; i < A.rows(); ++i) {
+            for (int j = i + 1; j < A.cols(); ++j) {
+                double diff = A.coeff(i, j) - A.coeff(j, i);
+                if (std::abs(diff) > 1.0e-10) {
+                    spdlog::warn(
+                        std::format("Matrix is notsymmetric at ({}, {}): ", i, j) +
+                        std::format("A({}, {})={} ", i, j, A.coeff(i, j)) +
+                        std::format("A({}, {})={}", j, i, A.coeff(j, i))
+                    );
+
+                    spdlog::warn(std::format(
+                        "{}: Type={} BoundaryCondition={}",
+                        i,
+                        static_cast<int>(particles[i].type),
+                        particles[i].boundaryCondition
+                    ));
+
+                    spdlog::warn(std::format(
+                        "{}: Type={} BoundaryCondition={}",
+                        j,
+                        static_cast<int>(particles[j].type),
+                        particles[j].boundaryCondition
+                    ));
                 }
             }
         }
+        spdlog::error("The coefficient matrix of the pressure Poisson equation is not "
+                      "symmetry. Check the warnings.");
     }
 
-    // Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-    // solver.analyzePattern(coefficientMatrix); // パターン解析
-    // solver.factorize(coefficientMatrix);      // LU分解
-    // if (solver.info() != Eigen::Success) {
-    //     spdlog::error("Factorization failed.");
-    // }
-
     Eigen::ConjugateGradient<Eigen::SparseMatrix<double>> solver;
-    solver.compute(coefficientMatrix);
-
-    // Eigen::BiCGSTAB<Eigen::SparseMatrix<double, Eigen::RowMajor>> solver;
-    // solver.compute(coefficientMatrix);
-    Eigen::VectorXd pressures = solver.solve(sourceTerm);
-    // std::cout << "#iterations:     " << solver.iterations() << std::endl;
-    // std::cout << "estimated error: " << solver.error() << std::endl;
-    pressures = solver.solve(sourceTerm);
+    solver.compute(A);
+    Eigen::VectorXd x = solver.solve(b);
 
     if (solver.info() != Eigen::Success) {
-        // spdlog::error("Pressure calculation failed.");
+        spdlog::error("Pressure calculation failed.");
     }
 
 #pragma omp parallel for
     for (auto& pi : particles) {
-        pi.pressure = pressures[pi.id];
+        pi.pressure = x[pi.id];
     }
 }
 
@@ -524,8 +546,8 @@ void MPS::calcPressureGradient() {
                 continue;
 
             if (dist < re) {
-                gradient += (pj.position - pi.position) *
-                            (pj.pressure - pi.minimumPressure) * weight(dist, re) /
+                gradient += (pj.pressure - pi.minimumPressure) *
+                            (pj.position - pi.position) * weight(dist, re) /
                             (dist * dist);
             }
         }
@@ -543,7 +565,7 @@ void MPS::moveParticlesWithPressureGradient() {
             pi.position += pi.acceleration * settings.dt * settings.dt;
             checkBoundaryViolation(pi);
         }
-        pi.acceleration.Zero();
+        pi.acceleration.setZero();
     }
 }
 
@@ -590,7 +612,7 @@ void MPS::setNeighbors() {
 
 #pragma omp parallel for
     for (auto& pi : particles) {
-        if (pi.type == ParticleType::Ghost)
+        if (pi.type == ParticleType::Ghost || pi.type == ParticleType::DummyWall)
             continue;
 
         pi.neighbors.clear();
@@ -632,14 +654,8 @@ void MPS::setNumberDensity() {
 
 #pragma omp parallel for
     for (auto& pi : particles) {
-        if (pi.boundaryCondition == BoundaryCondition::Surface) {
-            pi.numberDensityRatio = 0.0;
-
-        } else {
-            pi.numberDensityRatio =
-                getNumberDensity(pi, settings.effectiveRadius.pressure) /
-                refValues.pressure.initialNumberDensity;
-        }
+        pi.numberDensityRatio = getNumberDensity(pi, settings.effectiveRadius.pressure) /
+                                refValues.pressure.initialNumberDensity;
     }
 }
 

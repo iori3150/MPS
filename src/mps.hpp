@@ -41,6 +41,7 @@ private:
 
     void calcPressure();
     void setBoundaryCondition();
+    bool isSurfaceParticle(Particle& pi);
     void setSourceTerm();
     void setMatrix();
     void ensureDirichletBoundaryConnection();

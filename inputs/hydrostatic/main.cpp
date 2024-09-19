@@ -9,13 +9,13 @@
 
 namespace fs = std::filesystem;
 
-double l0      = 0.005;
+double l0      = 0.004;
 double density = 1000.0;
-std::vector<double> domainRangeX{0.0, 0.2};
-std::vector<double> domainRangeY{0.0, 0.35};
-std::vector<double> fluidRangeX{0.0, 0.2};
-std::vector<double> fluidRangeY{0.0, 0.3};
-int wallLayer      = 1;
+std::vector<double> domainRangeX{0.0, 0.3};
+std::vector<double> domainRangeY{0.0, 0.25};
+std::vector<double> fluidRangeX{0.0, 0.3};
+std::vector<double> fluidRangeY{0.0, 0.2};
+int wallLayer      = 2;
 int dummyWallLayer = 2;
 
 void checkFluidRange(std::vector<double>& xRange, std::vector<double>& yRange);
