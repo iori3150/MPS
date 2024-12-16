@@ -4,7 +4,7 @@
 #include <csv.hpp>
 #include <iostream>
 #include <queue>
-#include <spdlog/spdlog.h>
+// #include <spdlog/spdlog.h>
 
 double weight(const double& dist, const double& re) {
     double w = 0.0;
@@ -37,10 +37,10 @@ MPS::MPS(const std::filesystem::path& inputYamlPath) {
 
 double MPS::importInitialCondition() {
     if (!std::filesystem::exists(settings.inputCsvPath)) {
-        spdlog::error(
-            "Input file does not exist in the specified path: {}",
-            settings.inputCsvPath.string()
-        );
+        // spdlog::error(
+        //     "Input file does not exist in the specified path: {}",
+        //     settings.inputCsvPath.string()
+        // );
     }
 
     int particleDataHeaderRow = 3;
@@ -402,11 +402,11 @@ void MPS::ensureDirichletBoundaryConnection() {
     for (auto& pi : particles) {
         if (!pi.isDirichletBoundaryConnected &&
             pi.boundaryCondition == BoundaryCondition::Inner) {
-            spdlog::debug(
-                "There is no Dirichlet boundary condition connected to the particle "
-                "(id={}).",
-                std::to_string(pi.id)
-            );
+            // spdlog::debug(
+            //     "There is no Dirichlet boundary condition connected to the particle "
+            //     "(id={}).",
+            //     std::to_string(pi.id)
+            // );
             debugLogCount++;
 
             coefficientMatrix.coeffRef(pi.id, pi.id) *= 2.0;
@@ -557,14 +557,14 @@ double MPS::getCourantNumber() {
     }
 
     if (maxCourantNumber > settings.cflCondition) {
-        spdlog::debug(
-            "Courant number is larger than CFL condition. Courant={}",
-            std::to_string(maxCourantNumber)
-        );
+        // spdlog::debug(
+        //     "Courant number is larger than CFL condition. Courant={}",
+        //     std::to_string(maxCourantNumber)
+        // );
         debugLogCount++;
     }
     if (maxCourantNumber > 1.0) {
-        spdlog::error("Courant number is larger than 1.0. Exiting Simulation.");
+        // spdlog::error("Courant number is larger than 1.0. Exiting Simulation.");
     }
 
     return maxCourantNumber;
@@ -652,14 +652,14 @@ void MPS::checkBoundaryViolation(Particle& pi) {
         settings.domain.z.max < pi.position.z())
         isInDomain = false;
     if (!isInDomain) {
-        spdlog::debug(
-            "Particle (id={}) is out of domain. (x, y, z)=({}, {}, "
-            "{}) ",
-            std::to_string(pi.id),
-            std::to_string(pi.position.x()),
-            std::to_string(pi.position.y()),
-            std::to_string(pi.position.z())
-        );
+        // spdlog::debug(
+        //     "Particle (id={}) is out of domain. (x, y, z)=({}, {}, "
+        //     "{}) ",
+        //     std::to_string(pi.id),
+        //     std::to_string(pi.position.x()),
+        //     std::to_string(pi.position.y()),
+        //     std::to_string(pi.position.z())
+        // );
         debugLogCount++;
 
         pi.type = ParticleType::Ghost;

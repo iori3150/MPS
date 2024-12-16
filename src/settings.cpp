@@ -5,14 +5,14 @@
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <spdlog/spdlog.h>
+// #include <spdlog/spdlog.h>
 
 using std::format;
 
 void Settings::load(const std::filesystem::path& inputYamlPath) {
     std::ifstream ifs(inputYamlPath);
     if (!ifs.is_open()) {
-        spdlog::error("Could not open setting file: " + inputYamlPath.string());
+        // spdlog::error("Could not open setting file: " + inputYamlPath.string());
     }
 
     fkyaml::node root = fkyaml::node::deserialize(ifs);
@@ -84,6 +84,6 @@ void Settings::load(const std::filesystem::path& inputYamlPath) {
         inputCsvPath = root["inputCsvPath"].get_value<std::string>();
 
     } catch (const fkyaml::exception& e) {
-        spdlog::error(e.what());
+        // spdlog::error(e.what());
     }
 }

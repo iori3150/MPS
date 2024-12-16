@@ -13,10 +13,10 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
-#include <spdlog/async.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
-#include <spdlog/spdlog.h>
+// #include <spdlog/async.h>
+// #include <spdlog/sinks/basic_file_sink.h>
+// #include <spdlog/sinks/stdout_color_sinks.h>
+// #include <spdlog/spdlog.h>
 #include <string>
 
 using std::chrono::duration_cast;
@@ -34,7 +34,7 @@ void Simulation::run(const fs::path& inputYamlPath) {
     time = mps.loadInitialState();
     exportParticles(mps.particles);
 
-    spdlog::info("START SIMULATION");
+    // spdlog::info("START SIMULATION");
     simulationStartTime = system_clock::now();
     while (time + mps.settings.dt <= mps.settings.finishTime) {
         auto timeStepStartTime   = system_clock::now();
@@ -77,42 +77,43 @@ void Simulation::createResultDirectory(const fs::path& inputYamlPath) {
 }
 
 void Simulation::prepareLogFile() {
-    // Create console sink
-    auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
-    stdout_sink->set_level(spdlog::level::info);
+    // // Create console sink
+    // auto stdout_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    // stdout_sink->set_level(spdlog::level::info);
 
-    // Create file sink
-    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
-        fs::path(resultDirectory / "execution.log").string(),
-        true
-    );
-    file_sink->set_level(spdlog::level::debug);
+    // // Create file sink
+    // auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(
+    //     fs::path(resultDirectory / "execution.log").string(),
+    //     true
+    // );
+    // file_sink->set_level(spdlog::level::debug);
 
-    // Create logger by combining console sink and file sink
-    std::vector<spdlog::sink_ptr> sinks{stdout_sink, file_sink};
-    auto logger =
-        std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
-    logger->set_level(spdlog::level::debug);
+    // // Create logger by combining console sink and file sink
+    // std::vector<spdlog::sink_ptr> sinks{stdout_sink, file_sink};
+    // auto logger =
+    //     std::make_shared<spdlog::logger>("multi_sink", sinks.begin(), sinks.end());
+    // logger->set_level(spdlog::level::debug);
 
-    // Register logger
-    spdlog::set_default_logger(logger);
-    spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
-    spdlog::flush_on(spdlog::level::err); // Ensure error level log is flushed immediately
+    // // Register logger
+    // spdlog::set_default_logger(logger);
+    // spdlog::set_pattern("[%Y-%m-%d %H:%M:%S] [%l] %v");
+    // spdlog::flush_on(spdlog::level::err); // Ensure error level log is flushed
+    // immediately
 
-    spdlog::set_error_handler([](const std::string& errorMessage) {
-        spdlog::default_logger()->error(errorMessage);
+    // spdlog::set_error_handler([](const std::string& errorMessage) {
+    //     spdlog::default_logger()->error(errorMessage);
 
-        // Flush log buffer to ensure all log messages
-        // are written to the file before exiting
-        spdlog::default_logger()->flush();
+    //     // Flush log buffer to ensure all log messages
+    //     // are written to the file before exiting
+    //     spdlog::default_logger()->flush();
 
-        std::exit(EXIT_FAILURE);
-    });
+    //     std::exit(EXIT_FAILURE);
+    // });
 
     fs::path path = resultDirectory / "time_step_report.csv";
     timeStepReportFile.open(path);
     if (!timeStepReportFile.is_open()) {
-        spdlog::error("Could not open the log file: {}", path.string());
+        // spdlog::error("Could not open the log file: {}", path.string());
     }
 
     auto writer = csv::make_csv_writer(timeStepReportFile);
@@ -136,16 +137,16 @@ void Simulation::endSimulation() {
     auto totalSimulationTime =
         duration_cast<seconds>(simulationEndTime - simulationStartTime);
 
-    spdlog::info("END SIMULATION");
-    if (mps.debugLogCount > 0) {
-        spdlog::info(
-            "There were {} debug-level logs. Check 'execution.log'.",
-            mps.debugLogCount
-        );
-    } else {
-        spdlog::info("There were no debug-level logs.");
-    }
-    spdlog::info(std::format("Total Simulation Time = {:%T}", totalSimulationTime));
+    // spdlog::info("END SIMULATION");
+    // if (mps.debugLogCount > 0) {
+    //     spdlog::info(
+    //         "There were {} debug-level logs. Check 'execution.log'.",
+    //         mps.debugLogCount
+    //     );
+    // } else {
+    //     spdlog::info("There were no debug-level logs.");
+    // }
+    // spdlog::info(std::format("Total Simulation Time = {:%T}", totalSimulationTime));
 
     timeStepReportFile.close();
 }
@@ -212,12 +213,12 @@ void Simulation::timeStepReport(
     );
 
     if (isDebugLogAdded) {
-        spdlog::debug(
-            "Time Step:{} Time:{}s->{}s",
-            timeStep,
-            formattedTimeBefore,
-            formattedTimeAfter
-        );
+        // spdlog::debug(
+        //     "Time Step:{} Time:{}s->{}s",
+        //     timeStep,
+        //     formattedTimeBefore,
+        //     formattedTimeAfter
+        // );
     }
 }
 

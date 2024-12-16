@@ -2,7 +2,7 @@
 
 #include <csv.hpp>
 #include <fstream>
-#include <spdlog/spdlog.h>
+// #include <spdlog/spdlog.h>
 
 using std::endl;
 using std::make_tuple;
@@ -14,7 +14,7 @@ void Exporter::toCsv(
 ) {
     std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        spdlog::error("Could not open target csv file: {}", outFilePath.string());
+        // spdlog::error("Could not open target csv file: {}", outFilePath.string());
     }
     auto writer = csv::make_csv_writer(outFile);
 
@@ -61,7 +61,7 @@ void Exporter::toVtu(
 ) {
     std::ofstream outFile(outFilePath);
     if (!outFile.is_open()) {
-        spdlog::error("Could not open target vtu file: {}", outFilePath.string());
+        // spdlog::error("Could not open target vtu file: {}", outFilePath.string());
     }
 
     // --------------
